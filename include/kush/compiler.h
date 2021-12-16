@@ -19,6 +19,8 @@
 #ifndef KUSH_COMPILER_COMPILER_H
 #define KUSH_COMPILER_COMPILER_H
 
+#include <llvm-c/Core.h>
+
 #include <kush/configuration.h>
 #include <kush/error-handler.h>
 #include <kush/symbol-loader.h>
@@ -55,6 +57,7 @@ struct Compiler {
     bool coreApi;
     uint8_t* output;
     int32_t outputSize;
+    LLVMContextRef llvmContext;
 };
 
 /**

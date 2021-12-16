@@ -55,8 +55,7 @@ void generateFunction(Generator* generator, Function* function) {
 
     // TODO: Variable parameter
 
-    LLVMTypeRef t = LLVMInt32TypeInContext(generator->llvmContext);
-    LLVMTypeRef llvmFunctionType = LLVMFunctionType(/*function->returnType->llvmType*/ t, llvmParameterTypes, parameterCount, false);
+    LLVMTypeRef llvmFunctionType = LLVMFunctionType(function->returnType->llvmType, llvmParameterTypes, parameterCount, false);
     LLVMValueRef llvmFunction = LLVMAddFunction(generator->llvmModule, function->name, llvmFunctionType);
     function->llvmValue = llvmFunction;
 
@@ -118,12 +117,11 @@ void generateStructures(Generator* generator, Module* module) {
 }
 
 bool generateLLVM(Generator* generator, Module* module, const char* name) {
-    LLVMContextRef context = LLVMContextCreate();
-    LLVMModuleRef llvmModule = LLVMModuleCreateWithNameInContext(name, context);
+    LLVMModuleRef llvmModule = LLVMModuleCreateWithNameInContext(name,
+        generator->llvmContext);
     LLVMSetDataLayout(llvmModule, "");
     LLVMSetTarget(llvmModule, LLVMGetDefaultTargetTriple());
 
-    generator->llvmContext = context;
     generator->llvmModule = llvmModule;
     generator->llvmBuilder = LLVMCreateBuilder();
 
@@ -141,7 +139,6 @@ bool generateLLVM(Generator* generator, Module* module, const char* name) {
         fprintf(stderr, "[error] %s\n", error);
     }
     LLVMDisposeMessage(error);
-    LLVMContextDispose(context);
 
     return !invalid;
 }
@@ -175,6 +172,7 @@ Generator* newGenerator(Compiler* compiler) {
     Generator* generator = allocate(Generator, 1);
     generator->compiler = compiler;
     generator->scope = NULL;
+    generator->llvmContext = compiler->llvmContext;
     return generator;
 }
 

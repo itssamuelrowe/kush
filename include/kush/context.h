@@ -116,7 +116,7 @@ typedef struct Primitives Primitives;
 
 extern Primitives primitives;
 
-void initializePrimitives();
+void initializePrimitives(LLVMContextRef llvmContext);
 void destroyPrimitives();
 
 /*******************************************************************************

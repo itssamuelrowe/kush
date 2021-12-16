@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <llvm-c/Core.h>
 
 /* The JTK_LOGGER_DISABLE constant is defined in Configuration.h. Therefore,
  * make sure it is included before any other file which may
@@ -554,7 +555,7 @@ bool compileEx(Compiler* compiler, char** arguments, int32_t length) {
             fprintf(stderr, "\033[1;31m[error]\033[0m Please specify input files.\n");
         }
         else {
-            initializePrimitives();
+            initializePrimitives(compiler->llvmContext);
             initialize(compiler);
             buildAST(compiler);
             if (!compiler->dumpTokens && (noErrors = (compiler->errorHandler->errors->m_size == 0))) {
@@ -615,6 +616,7 @@ Compiler* newCompiler() {
     compiler->logger = jtk_Logger_new(jtk_ConsoleLogger_log);
     jtk_Logger_setLevel(compiler->logger, JTK_LOG_LEVEL_NONE);
 #endif
+    compiler->llvmContext = LLVMContextCreate();
 
     return compiler;
 }
@@ -668,5 +670,8 @@ void deleteCompiler(Compiler* compiler) {
 #endif
 
     jtk_ArrayList_delete(compiler->inputFiles);
+
+    LLVMContextDispose(compiler->llvmContext);
+
     deallocate(compiler);
 }

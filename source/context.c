@@ -236,39 +236,39 @@ Primitives primitives = {
     }
 };
 
-void initializePrimitives() {
+void initializePrimitives(LLVMContextRef llvmContext) {
     primitives.boolean.arrayTypes = jtk_ArrayList_new();
-    primitives.boolean.llvmType = LLVMInt1Type();
+    primitives.boolean.llvmType = LLVMInt1TypeInContext(llvmContext);
 
     primitives.i8.arrayTypes = jtk_ArrayList_new();
-    primitives.i8.llvmType = LLVMInt8Type();
+    primitives.i8.llvmType = LLVMInt8TypeInContext(llvmContext);
 
     primitives.i16.arrayTypes = jtk_ArrayList_new();
-    primitives.i16.llvmType = LLVMInt16Type();
+    primitives.i16.llvmType = LLVMInt16TypeInContext(llvmContext);
 
     primitives.i32.arrayTypes = jtk_ArrayList_new();
-    primitives.i32.llvmType = LLVMInt32Type();
+    primitives.i32.llvmType = LLVMInt32TypeInContext(llvmContext);
 
     primitives.i64.arrayTypes = jtk_ArrayList_new();
-    primitives.i64.llvmType = LLVMInt64Type();
+    primitives.i64.llvmType = LLVMInt64TypeInContext(llvmContext);
 
     primitives.ui8.arrayTypes = jtk_ArrayList_new();
-    primitives.ui8.llvmType = LLVMInt8Type();
+    primitives.ui8.llvmType = LLVMInt8TypeInContext(llvmContext);
 
     primitives.ui16.arrayTypes = jtk_ArrayList_new();
-    primitives.ui16.llvmType = LLVMInt16Type();
+    primitives.ui16.llvmType = LLVMInt16TypeInContext(llvmContext);
 
     primitives.ui32.arrayTypes = jtk_ArrayList_new();
-    primitives.ui32.llvmType = LLVMInt32Type();
+    primitives.ui32.llvmType = LLVMInt32TypeInContext(llvmContext);
 
     primitives.ui64.arrayTypes = jtk_ArrayList_new();
-    primitives.ui64.llvmType = LLVMInt64Type();
+    primitives.ui64.llvmType = LLVMInt64TypeInContext(llvmContext);
 
     primitives.f32.arrayTypes = jtk_ArrayList_new();
-    primitives.f32.llvmType = LLVMFloatType();
+    primitives.f32.llvmType = LLVMFloatTypeInContext(llvmContext);
 
     primitives.f64.arrayTypes = jtk_ArrayList_new();
-    primitives.f64.llvmType = LLVMDoubleType();
+    primitives.f64.llvmType = LLVMDoubleTypeInContext(llvmContext);
 
     primitives.string.arrayTypes = jtk_ArrayList_new();
     // TODO: primitives.string.llvmType = ();
