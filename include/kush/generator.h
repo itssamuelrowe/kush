@@ -29,11 +29,10 @@ struct Generator {
     Compiler* compiler;
     Scope* scope;
     FILE* output;
-    int32_t index;
 };
 
 typedef struct Generator Generator;
 
 Generator* newGenerator(Compiler* compiler);
 void deleteGenerator(Generator* generator);
-void generateC(Generator* generator, Module* module);
+void generateIR(Generator* generator, Module* module);
