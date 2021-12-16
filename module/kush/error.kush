@@ -1,0 +1,11 @@
+struct Location {
+    string file;
+    i32 line;
+    string function;
+}
+
+struct Error {
+    string message;
+    string code;
+    Location location;
+}

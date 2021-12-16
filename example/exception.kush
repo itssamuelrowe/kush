@@ -1,0 +1,25 @@
+// Feature unavailable
+
+void f1(a, b) {
+    print('Invoked f1!');
+    throw 'SIMPLE_ERROR';
+}
+
+void f2() {
+    print('Invoked f2!');
+    f1(null, null);
+}
+
+void f3() {
+    print('Invoked f3!');
+    f2();
+}
+
+void f4() {
+    print('Invoked f4!');
+    f3();
+}
+
+void main(...arguments) {
+    f4();
+}

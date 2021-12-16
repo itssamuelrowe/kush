@@ -1,0 +1,68 @@
+void printArray(i32[] array) {
+    var i = 0;
+    while i < array.size {
+        print_i(array[i]);
+
+        if i + 1 < array.size {
+            print_s('    ');
+        }
+
+        i += 1;
+    }
+    print_s('\n');
+}
+
+void maxHeapify(i32[] heap, i32 heapSize, i32 root) {
+    i32 left = root * 2;
+    i32 right = root * 2 + 1;
+    i32 largest = root;
+
+    if (left < heapSize) && (heap[left - 1] > heap[root - 1]) {
+        largest = left;
+    }
+
+    if (right < heapSize) && (heap[left - 1] > heap[largest - 1]) {
+        largest = right;
+    }
+
+    if largest != root {
+        var t = heap[largest - 1];
+        heap[largest - 1] = heap[root - 1];
+        heap[root - 1] = t;
+
+        maxHeapify(heap, heapSize, largest);
+    }
+}
+
+void buildHeap(i32[] heap) {
+    var i = heap.size / 2;
+    while i >= 1 {
+        maxHeapify(heap, heap.size, i);
+        i -= 1;
+    }
+}
+
+void heapSort(i32[] heap) {
+    buildHeap(heap);
+
+    var i = heap.size - 1;
+    while i > 0 {
+        var t = heap[0];
+        heap[0] = heap[i];
+        heap[i] = t;
+
+        maxHeapify(heap, i, 1);
+    }
+}
+
+void main() {
+    var array = [ 5, 3, 19, 11, 8, 12, 16 ];
+
+    print_s('[before]\n');
+    printArray(array);
+
+    heapSort(array);
+
+    print_s('[after]\n');
+    printArray(array);
+}

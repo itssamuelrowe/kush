@@ -1,0 +1,13 @@
+void main() {
+    var n = 5;
+    var result = 1;
+    var i = 1;
+    while i <= n {
+        result *= i;
+        i += 1;
+    }
+
+    print_s('The factorial of 5 is ');
+    print_i(result);
+    print_s('.\n');
+}

@@ -1,0 +1,14 @@
+struct Point {
+    i32 x;
+    i32 y;
+}
+
+void main() {
+    var point = new Point {
+        y : 20,
+        x : 10
+    };
+    print_i(point.x);
+    print_s(', ');
+    print_i(point.y);
+}

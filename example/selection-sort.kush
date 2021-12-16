@@ -1,0 +1,44 @@
+void printArray(i32[] array) {
+    var i = 0;
+    while i < array.size {
+        print_i(array[i]);
+
+        if i + 1 < array.size {
+            print_s('    ');
+        }
+
+        i += 1;
+    }
+    print_s('\n');
+}
+
+void main() {
+    var values = [ 5, 3, 19, 11, 8, 12, 16 ];
+
+    print_s('[before]\n');
+    printArray(values);
+
+    var i = 0;
+    while i < values.size - 1 {
+        var m = i;
+
+        var j = i + 1;
+        while j < values.size {
+            if values[j] < values[m] {
+                m = j;
+            }
+            j += 1;
+        }
+
+        if m != i {
+            var t = values[i];
+            values[i] = values[m];
+            values[m] = t;
+        }
+
+        i += 1;
+    }
+
+    print_s('[after]\n');
+    printArray(values);
+}

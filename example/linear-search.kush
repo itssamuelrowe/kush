@@ -1,0 +1,54 @@
+boolean equals(string s1, string s2) {
+    boolean result = false;
+    if s1 == s2 {
+        result = true;
+    }
+    else if s1.value.size == s2.value.size {
+        result = true;
+        i32 i = 0;
+        while i < s1.value.size {
+            if (s1.value[i] != s2.value[i]) {
+                result = false;
+                break;
+            }
+            i += 1;
+        }
+    }
+    return result;
+}
+
+i32 search(string[] array, string key) {
+    i32 result = -1;
+    i32 i = 0;
+    while i < array.size {
+        if equals(array[i], key) {
+            result = i;
+            break;
+        }
+        i += 1;
+    }
+    return result;
+}
+
+void main() {
+    var array = [
+        'Samuel Rowe',
+        'Joel Rego',
+        'Akshay',
+        'Arshad Ahmed',
+        'Sreem Chowdhary'
+    ];
+    string key = 'Kush';
+
+    i32 result = search(array, key);
+    if result != -1 {
+        print_s('Found the result at ');
+        print_i(result);
+        print_s('!\n');
+    }
+    else {
+        print_s('Could not find \"');
+        print_s(key);
+        print_s('\" in the array.\n');
+    }
+}

@@ -1,0 +1,19 @@
+// Feature unavailable
+
+void main() {
+    print('Enter the hours: ');
+    var hours = parseF64(readLine());
+
+    print('Enter the rate: ');
+    var rate = parseF64(readLine());
+
+    f64 result;
+    if hours <= 40 {
+        result = hours * rate;
+    }
+    else {
+        result = 40.0 * rate + (hours - 40.0) * rate * 1.5;
+    }
+
+    print_i(result);
+}

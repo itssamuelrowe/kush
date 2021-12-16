@@ -1,0 +1,10 @@
+void main() {
+    var numbers = [ 10, 20, 30, 40, 50 ];
+    var sum = 0;
+    var i = 0;
+    while i < numbers.size {
+        sum += numbers[i];
+        i += 1;
+    }
+    print_i(sum);
+}
