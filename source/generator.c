@@ -1,8 +1,21 @@
 #include <kush/generator.h>
 
-void generateFunctions(Generator* generator);
+void generateFunction(Generator* generator, Function* function);
+void generateFunctions(Generator* generator, Module* module);
 void generateStructures(Generator* generator, Module* module);
 bool generateLLVM(Generator* generator, Module* module, const char* name);
+
+void generateFunction(Generator* generator, Function* function) {
+}
+
+void generateFunctions(Generator* generator, Module* module) {
+    int32_t functionCount = module->functions->m_size;
+    int32_t i;
+    for (i = 0; i < functionCount; i++) {
+        Function* function = (Function*)module->functions->m_values[i];
+        generateFunction(generator, function);
+    }
+}
 
 void generateStructures(Generator* generator, Module* module) {
     int32_t structureCount = module->structures->m_size;
@@ -36,36 +49,33 @@ void generateStructures(Generator* generator, Module* module) {
     }
 }
 
-void generateFunctions(Generator* generator) {
-}
-
 bool generateLLVM(Generator* generator, Module* module, const char* name) {
     LLVMContextRef context = LLVMContextCreate();
     LLVMModuleRef llvmModule = LLVMModuleCreateWithNameInContext(name, context);
-	LLVMSetDataLayout(llvmModule, "");
-	LLVMSetTarget(llvmModule, LLVMGetDefaultTargetTriple());
+    LLVMSetDataLayout(llvmModule, "");
+    LLVMSetTarget(llvmModule, LLVMGetDefaultTargetTriple());
 
     generator->llvmContext = context;
     generator->llvmModule = llvmModule;
     generator->llvmBuilder = LLVMCreateBuilder();
 
     generateStructures(generator, module);
-    generateFunctions(generator);
+    generateFunctions(generator, module);
 
-	char *error = NULL;
-	bool invalid = LLVMVerifyModule(generator->llvmModule, LLVMAbortProcessAction, &error);
-	if (!invalid) {
-		char* data = LLVMPrintModuleToString(generator->llvmModule);
-		fprintf(generator->output, data);
-		LLVMDisposeMessage(data);
-	}
+    char* error = NULL;
+    bool invalid = LLVMVerifyModule(generator->llvmModule, LLVMAbortProcessAction, &error);
+    if (!invalid) {
+        char* data = LLVMPrintModuleToString(generator->llvmModule);
+        fprintf(generator->output, data);
+        LLVMDisposeMessage(data);
+    }
     else {
         fprintf(stderr, "[error] %s\n", error);
     }
     LLVMDisposeMessage(error);
     LLVMContextDispose(context);
-	
-	return !invalid;
+
+    return !invalid;
 }
 
 void generateIR(Generator* generator, Module* module) {
