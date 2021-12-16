@@ -8,7 +8,38 @@ bool generateLLVM(Generator* generator, Module* module, const char* name);
 
 #define invalidate(generator) generator->scope = generator->scope->parent
 
-void generateBlock(Generator* generator, Block* block, int32_t depth) {}
+LLVMValueRef generateExpression(Generator* generator, Context* context) {
+    return LLVMConstIntOfStringAndSize(LLVMInt32TypeInContext(generator->llvmContext), "10", 2, 10);
+}
+
+void generateBlock(Generator* generator, Block* block, int32_t depth) {
+    generator->scope = block->scope;
+    
+    int32_t statementCount = block->statements->m_size;
+    for (int i = 0; i < statementCount; i++) {
+        Context* context = (Context*)block->statements->m_values[i];
+        switch (context->tag) {
+            case CONTEXT_RETURN_STATEMENT: {
+                ReturnStatement* statement = (ReturnStatement*)context;
+                if (statement->expression != NULL) {
+                    LLVMValueRef llvmValue = generateExpression(generator, (Context*)statement->expression);
+                    LLVMBuildRet(generator->llvmBuilder, llvmValue);
+                }
+                else {
+                    LLVMBuildRetVoid(generator->llvmBuilder);
+                }
+                break;
+            }
+
+            default: {
+                controlError();
+                break;
+            }
+        }
+    }
+
+    invalidate(generator);
+}
 
 void generateFunction(Generator* generator, Function* function) {
     generator->scope = function->scope;
@@ -24,17 +55,18 @@ void generateFunction(Generator* generator, Function* function) {
 
     // TODO: Variable parameter
 
-    LLVMTypeRef llvmFunctionType = LLVMFunctionType(function->returnType->llvmType, llvmParameterTypes, parameterCount, false);
+    LLVMTypeRef t = LLVMInt32TypeInContext(generator->llvmContext);
+    LLVMTypeRef llvmFunctionType = LLVMFunctionType(/*function->returnType->llvmType*/ t, llvmParameterTypes, parameterCount, false);
     LLVMValueRef llvmFunction = LLVMAddFunction(generator->llvmModule, function->name, llvmFunctionType);
     function->llvmValue = llvmFunction;
 
     for (int32_t i = 0; i < parameterCount; i++) {
-        Variable* parameter = (Variable*)jtk_ArrayList_getValue(function->parameters, i);
+        Variable* parameter = (Variable*)function->parameters->m_values[i];
         parameter->llvmValue = LLVMGetParam(llvmFunction, i);
         parameter->parameter = true;
     }
 
-    LLVMBasicBlockRef llvmBlock = LLVMAppendBasicBlock(llvmFunction, "");
+    LLVMBasicBlockRef llvmBlock = LLVMAppendBasicBlockInContext(generator->llvmContext, llvmFunction, "");
     generator->llvmBuilder = LLVMCreateBuilder();
     LLVMPositionBuilderAtEnd(generator->llvmBuilder, llvmBlock);
 
@@ -116,8 +148,8 @@ bool generateLLVM(Generator* generator, Module* module, const char* name) {
 
 void generateIR(Generator* generator, Module* module) {
     Compiler* compiler = generator->compiler;
-    const uint8_t* path = (const uint8_t*)jtk_ArrayList_getValue(compiler->inputFiles,
-        compiler->currentFileIndex);
+    const uint8_t* path = (const uint8_t*)compiler->inputFiles
+        ->m_values[compiler->currentFileIndex];
 
     int pathSize = jtk_CString_getSize(path);
     uint8_t* sourceName = allocate(uint8_t, pathSize - 1);
