@@ -1448,7 +1448,7 @@ Structure* addSyntheticStructure(Analyzer* analyzer, const uint8_t* name,
 
 Variable* addSyntheticMember(Analyzer* analyzer, Structure* structure,
     bool constant, const uint8_t* name, int32_t nameSize, Type* type) {
-    Variable* variable = newVariable(false, constant, NULL, name, nameSize,
+    Variable* variable = newVariable(false, constant, false,  NULL, name, nameSize,
         NULL, NULL, structure->scope);
     variable->type = type;
     defineSymbol(structure->scope, variable);
@@ -1466,7 +1466,7 @@ void addSyntheticFunction(Analyzer* analyzer, const uint8_t* name,
 
 Variable* makeParameter(Analyzer* analyzer, const uint8_t* name, int32_t nameSize,
     Type* type) {
-    Variable* variable = newVariable(false, false, NULL, name,
+    Variable* variable = newVariable(false, false, true, NULL, name,
         nameSize, NULL, NULL, analyzer->scope);
     variable->type = type;
     return variable;

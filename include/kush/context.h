@@ -432,6 +432,7 @@ struct Variable {
     int32_t nameSize;
     bool infer;
     bool constant;
+    bool parameter;
     VariableType* variableType;
     Type* type;
     Token* identifier;
@@ -441,9 +442,9 @@ struct Variable {
 
 typedef struct Variable Variable;
 
-Variable* newVariable(bool infer, bool constant, VariableType* variableType,
-    const uint8_t* name, int32_t nameSize, Token* identifier,
-    BinaryExpression* expression, Scope* parent);
+Variable* newVariable(bool infer, bool constant, bool parameter,
+    VariableType* variableType, const uint8_t* name, int32_t nameSize,
+    Token* identifier, BinaryExpression* expression, Scope* parent);
 void deleteVariable(Variable* variable);
 
 /*******************************************************************************

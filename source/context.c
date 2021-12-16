@@ -668,15 +668,16 @@ void deleteVariableType(VariableType* self) {
  * Variable                                                                    *
  *******************************************************************************/
 
-Variable* newVariable(bool infer, bool constant, VariableType* variableType,
-    const uint8_t* name, int32_t nameSize, Token* identifier,
-    BinaryExpression* expression, Scope* parent) {
+Variable* newVariable(bool infer, bool constant, bool parameter,
+    VariableType* variableType, const uint8_t* name, int32_t nameSize,
+    Token* identifier, BinaryExpression* expression, Scope* parent) {
     Variable* result = allocate(Variable, 1);
     result->tag = CONTEXT_VARIABLE;
     result->nameSize = nameSize;
     result->name = jtk_CString_newEx(name, nameSize);
     result->infer = infer;
     result->constant = constant;
+    result->parameter = parameter;
     result->variableType = variableType;
     result->type = NULL;
     result->identifier = identifier;
