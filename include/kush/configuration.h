@@ -40,7 +40,7 @@
 #endif
 
 #define KUSH_VERSION_MAJOR 0
-#define KUSH_VERSION_MINOR 1
+#define KUSH_VERSION_MINOR 2
 
 #define allocate(type, units) (type*)allocate0(sizeof (type) * (units))
 #define deallocate(object) free(object)
