@@ -10,7 +10,7 @@ void generateStructures(Generator* generator, Module* module) {
     for (j = 0; j < structureCount; j++) {
         Structure* structure = (Structure*)
             (module->structures->m_values[j]);
-        structure->type->llvmType = LLVMStructCreateNamed(generator->context, structure->name);
+        structure->type->llvmType = LLVMStructCreateNamed(generator->llvmContext, structure->name);
 
         int32_t declarationCount = structure->declarations->m_size;
         int32_t totalVariables = 0;
@@ -45,17 +45,17 @@ bool generateLLVM(Generator* generator, Module* module, const char* name) {
 	LLVMSetDataLayout(llvmModule, "");
 	LLVMSetTarget(llvmModule, LLVMGetDefaultTargetTriple());
 
-    generator->context = context;
-    generator->module = llvmModule;
-    generator->builder = LLVMCreateBuilder();
+    generator->llvmContext = context;
+    generator->llvmModule = llvmModule;
+    generator->llvmBuilder = LLVMCreateBuilder();
 
     generateStructures(generator, module);
     generateFunctions(generator);
 
 	char *error = NULL;
-	bool invalid = LLVMVerifyModule(generator->module, LLVMAbortProcessAction, &error);
+	bool invalid = LLVMVerifyModule(generator->llvmModule, LLVMAbortProcessAction, &error);
 	if (!invalid) {
-		char* data = LLVMPrintModuleToString(generator->module);
+		char* data = LLVMPrintModuleToString(generator->llvmModule);
 		fprintf(generator->output, data);
 		LLVMDisposeMessage(data);
 	}
