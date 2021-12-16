@@ -37,6 +37,7 @@ struct Generator {
 	LLVMBuilderRef builder;
 	LLVMValueRef function;
 	LLVMBasicBlockRef endBlock;
+    LLVMContextRef context;
 };
 
 typedef struct Generator Generator;
