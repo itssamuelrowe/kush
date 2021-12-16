@@ -19,6 +19,8 @@
 #ifndef KUSH_PARSER_CONTEXT_H
 #define KUSH_PARSER_CONTEXT_H
 
+#include <llvm-c/Core.h>
+
 #include <jtk/collection/list/ArrayList.h>
 #include <kush/token.h>
 #include <kush/scope.h>
@@ -49,6 +51,7 @@ struct Type {
     bool reference;
     Token* identifier;
     jtk_ArrayList_t* arrayTypes;
+    LLVMTypeRef llvmType;
     union {
         struct {
             /**
