@@ -30,9 +30,10 @@
  ******************************************************************************/
 
 struct Generator {
+    FILE* output;
     Compiler* compiler;
     Scope* scope;
-    FILE* output;
+    Function* function;
     LLVMModuleRef llvmModule;
 	LLVMBuilderRef llvmBuilder;
 	LLVMValueRef llvmFunction;

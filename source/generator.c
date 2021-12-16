@@ -1,11 +1,47 @@
 #include <kush/generator.h>
 
+void generateBlock(Generator* generator, Block* block, int32_t depth);
 void generateFunction(Generator* generator, Function* function);
 void generateFunctions(Generator* generator, Module* module);
 void generateStructures(Generator* generator, Module* module);
 bool generateLLVM(Generator* generator, Module* module, const char* name);
 
+#define invalidate(generator) generator->scope = generator->scope->parent
+
+void generateBlock(Generator* generator, Block* block, int32_t depth) {}
+
 void generateFunction(Generator* generator, Function* function) {
+    generator->scope = function->scope;
+    generator->function = function;
+
+    int32_t parameterCount = function->parameters->m_size;
+    LLVMTypeRef* llvmParameterTypes = allocate(LLVMTypeRef, parameterCount);
+
+    for (int32_t i = 0; i < parameterCount; i++) {
+        Variable* parameter = (Variable*)function->parameters->m_values[i];
+        llvmParameterTypes[i] = parameter->type->llvmType;
+    }
+
+    // TODO: Variable parameter
+
+    LLVMTypeRef llvmFunctionType = LLVMFunctionType(function->returnType->llvmType, llvmParameterTypes, parameterCount, false);
+    LLVMValueRef llvmFunction = LLVMAddFunction(generator->llvmModule, function->name, llvmFunctionType);
+    function->llvmValue = llvmFunction;
+
+    for (int32_t i = 0; i < parameterCount; i++) {
+        Variable* parameter = (Variable*)jtk_ArrayList_getValue(function->parameters, i);
+        parameter->llvmValue = LLVMGetParam(llvmFunction, i);
+        parameter->parameter = true;
+    }
+
+    LLVMBasicBlockRef llvmBlock = LLVMAppendBasicBlock(llvmFunction, "");
+    generator->llvmBuilder = LLVMCreateBuilder();
+    LLVMPositionBuilderAtEnd(generator->llvmBuilder, llvmBlock);
+
+    generateBlock(generator, function->body, 0);
+
+    invalidate(generator);
+    deallocate(llvmParameterTypes);
 }
 
 void generateFunctions(Generator* generator, Module* module) {
