@@ -9,6 +9,11 @@ project (Kush)
 include(FindPkgConfig)
 pkg_search_module(JTK REQUIRED jtk)
 
+find_package(LLVM REQUIRED CONFIG)
+include_directories(${LLVM_INCLUDE_DIRS})
+add_definitions(${LLVM_DEFINITIONS})
+llvm_map_components_to_libnames(LLVM_LIBRARIES support core target)
+
 # Project Version Number
 set (KUSH_PROJECT_VERSION_MAJOR 0)
 set (KUSH_PROJECT_VERSION_MINOR 1)
@@ -42,7 +47,7 @@ set (
 set(CMAKE_VERBOSE_MAKEFILE off)
 link_directories(${JTK_LIBRARY_DIRS})
 add_executable(kush ${KUSH_COMPILER_SOURCE})
-target_link_libraries(kush ${JTK_LIBRARIES} m)
+target_link_libraries(kush ${JTK_LIBRARIES} ${LLVM_LIBRARIES} m)
 target_include_directories(kush SYSTEM PUBLIC ${JTK_INCLUDE_DIRS})
 # target_compile_options(kush PUBLIC -Wall -Wswitch)
 target_compile_options(kush PUBLIC -g -Werror=return-type -Wall -Wno-switch ${JTK_CFLAGS} ${JTK_CFLAGS_OTHER})
