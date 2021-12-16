@@ -1,9 +1,39 @@
 #include <kush/generator.h>
 
+void generateFunctions(Generator* generator);
+void generateStructures(Generator* generator);
 bool generateLLVM(Generator* generator, Module* module, const char* name);
 
+void generateStructures(Generator* generator) {
+}
+
+void generateFunctions(Generator* generator) {
+}
+
 bool generateLLVM(Generator* generator, Module* module, const char* name) {
-    return false;
+    LLVMModuleRef llvmModule = LLVMModuleCreateWithName(name);
+	LLVMSetDataLayout(llvmModule, "");
+	LLVMSetTarget(llvmModule, LLVMGetDefaultTargetTriple());
+
+    generator->module = llvmModule;
+    generator->builder = LLVMCreateBuilder();
+
+    generateStructures(generator);
+    generateFunctions(generator);
+
+	char *error = NULL;
+	bool invalid = LLVMVerifyModule(generator->module, LLVMAbortProcessAction, &error);
+	if (!invalid) {
+		char* data = LLVMPrintModuleToString(generator->module);
+		fprintf(generator->output, data);
+		LLVMDisposeMessage(data);
+	}
+    else {
+        fprintf(stderr, "[error] %s\n", error);
+    }
+    LLVMDisposeMessage(error);
+	
+	return !invalid;
 }
 
 void generateIR(Generator* generator, Module* module) {
@@ -25,6 +55,7 @@ void generateIR(Generator* generator, Module* module) {
     generator->output = fopen(sourceName, "w+");
     generateLLVM(generator, module, sourceName);
 
+    fprintf(generator->output, "\ndefine i32 @main() {\nret i32 0\n}");
     fclose(generator->output);
 
     deallocate(sourceName);
