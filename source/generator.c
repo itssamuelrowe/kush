@@ -199,15 +199,33 @@ LLVMValueRef generateAdditive(Generator* generator, BinaryExpression* context) {
 }
 
 LLVMValueRef generateShift(Generator* generator, BinaryExpression* context) {
-    LLVMValueRef result = generateAdditive(generator, (BinaryExpression*)context->left);
+    LLVMValueRef lhs = generateAdditive(generator, (BinaryExpression*)context->left);
 
     for (int32_t i = 0; i < context->others->m_size; i++) {
         jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
-        /* TODO: Update result */
-        generateAdditive(generator, (BinaryExpression*)pair->m_right);
+        LLVMValueRef rhs = generateAdditive(generator, (BinaryExpression*)pair->m_right);
+
+        Token* token = (Token*)pair->m_left;
+        switch (token->type) {
+            case TOKEN_LEFT_ANGLE_BRACKET_2: {
+                lhs = LLVMBuildShl(generator->llvmBuilder, lhs, rhs, "shift_left");
+                break;
+            }
+
+            // NOTE: >> is arithmetic shift right and >>> is logical shift right
+            case TOKEN_RIGHT_ANGLE_BRACKET_2: {
+                lhs = LLVMBuildAShr(generator->llvmBuilder, lhs, rhs, "shift_right");
+                break;
+            }
+
+            default: {
+                fprintf(stderr, "[error] generateShift: invalid token type");
+                break;
+            }
+        }
     }
 
-    return result;
+    return lhs;
 }
 
 LLVMValueRef generateRelational(Generator* generator, BinaryExpression* context) {
