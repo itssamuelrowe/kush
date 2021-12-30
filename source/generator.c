@@ -3,6 +3,7 @@
 
 LLVMValueRef generateArray(Generator* generator, ArrayExpression* context);
 LLVMValueRef generateNew(Generator* generator, NewExpression* context);
+int32_t getRadix(const uint8_t** text, int32_t* length);
 LLVMValueRef generatePrimary(Generator* generator, void* context, bool token);
 LLVMValueRef generateSubscript(Generator* generator, Subscript* context);
 LLVMValueRef generateFunctionArguments(Generator* generator, FunctionArguments* context);
@@ -40,10 +41,60 @@ LLVMValueRef generateNew(Generator* generator, NewExpression* context) {
     return result;
 }
 
+int32_t getRadix(const uint8_t** text, int32_t* length) {
+    int32_t radix = 10;
+    if (length > 2) {
+        uint8_t c = (*text)[1];
+        switch (c) {
+            case 'b':
+            case 'B': {
+                radix = 2;
+                break;
+            }
+
+            case 'c':
+            case 'C': {
+                radix = 8;
+                break;
+            }
+
+            case 'x':
+            case 'X': {
+                radix = 16;
+                break;
+            }
+
+            default: {
+                if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+                    fprintf(stderr, "[error] getRadix(): invalid integer literal %s\n", *text);
+                }
+                break;
+            }
+        }
+    }
+
+    if (radix != 10) {
+        *text += 2;
+        *length -= 2;
+    }
+
+    return radix;
+}
+
 LLVMValueRef generatePrimary(Generator* generator, void* context, bool token) {
     LLVMValueRef result;
     if (token) {
-        printf("%s\n", ((Token*)context)->text);
+        Token* token0 = (Token*)context;
+        switch (token0->type) {
+            case TOKEN_INTEGER_LITERAL: {
+                const uint8_t* text = token0->text;
+                int32_t length = token0->length; 
+                int32_t radix = getRadix(&text, &length);
+                result = LLVMConstIntOfStringAndSize(
+                    LLVMInt32TypeInContext(generator->llvmContext), text, length, radix);
+                break;
+            }
+        }
     }
     else {
         Context* context0 = (Context*)context;
@@ -284,8 +335,7 @@ void generateBlock(Generator* generator, Block* block, int32_t depth) {
                 ReturnStatement* statement = (ReturnStatement*)context;
                 if (statement->expression != NULL) {
                     LLVMValueRef llvmValue = generateExpression(generator, (Context*)statement->expression);
-                    LLVMValueRef temporary = LLVMConstIntOfStringAndSize(LLVMInt32TypeInContext(generator->llvmContext), "10", 2, 10);
-                    LLVMBuildRet(generator->llvmBuilder, temporary);
+                    LLVMBuildRet(generator->llvmBuilder, llvmValue);
                 }
                 else {
                     LLVMBuildRetVoid(generator->llvmBuilder);
