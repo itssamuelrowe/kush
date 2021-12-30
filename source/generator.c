@@ -187,15 +187,32 @@ LLVMValueRef generateMultiplicative(Generator* generator, BinaryExpression* cont
 }
 
 LLVMValueRef generateAdditive(Generator* generator, BinaryExpression* context) {
-    LLVMValueRef result = generateMultiplicative(generator, context->left);
+    LLVMValueRef lhs = generateMultiplicative(generator, context->left);
 
     for (int32_t i = 0; i < context->others->m_size; i++) {
         jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
-        /* TODO: Update result */
-        generateMultiplicative(generator, (BinaryExpression*)pair->m_right);
+        LLVMValueRef rhs = generateMultiplicative(generator, (BinaryExpression*)pair->m_right);
+
+        Token* token = (Token*)pair->m_left;
+        switch (token->type) {
+            case TOKEN_PLUS: {
+                lhs = LLVMBuildAdd(generator->llvmBuilder, lhs, rhs, "add");
+                break;
+            }
+
+            case TOKEN_DASH: {
+                lhs = LLVMBuildSub(generator->llvmBuilder, lhs, rhs, "subtract");
+                break;
+            }
+
+            default: {
+                fprintf(stderr, "[error] generateAdditive: invalid token type");
+                break;
+            }
+        }
     }
 
-    return result;
+    return lhs;
 }
 
 LLVMValueRef generateShift(Generator* generator, BinaryExpression* context) {
