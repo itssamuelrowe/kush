@@ -259,15 +259,16 @@ LLVMValueRef generateExclusiveOr(Generator* generator, BinaryExpression* context
 }
 
 LLVMValueRef generateInclusiveOr(Generator* generator, BinaryExpression* context) {
-    LLVMValueRef result = generateExclusiveOr(generator, (BinaryExpression*)context->left);
+    LLVMValueRef lhs = generateExclusiveOr(generator, (BinaryExpression*)context->left);
 
     for (int32_t i = 0; i < context->others->m_size; i++) {
         jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
-        /* TODO: Update result */
-        generateExclusiveOr(generator, (BinaryExpression*)pair->m_right);
+        LLVMValueRef rhs = generateExclusiveOr(generator, (BinaryExpression*)pair->m_right);
+        
+        lhs = LLVMBuildOr(generator->llvmBuilder, lhs, rhs, "inclusive_or");
     }
 
-    return result;
+    return lhs;
 }
 
 LLVMValueRef generateLogicalAnd(Generator* generator, BinaryExpression* context) {
