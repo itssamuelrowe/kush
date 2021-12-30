@@ -1,5 +1,27 @@
 #include <kush/generator.h>
+#include <jtk/collection/Pair.h>
 
+LLVMValueRef generateArray(Generator* generator, ArrayExpression* context);
+LLVMValueRef generateNew(Generator* generator, NewExpression* context);
+LLVMValueRef generatePrimary(Generator* generator, void* context, bool token);
+LLVMValueRef generateSubscript(Generator* generator, Subscript* context);
+LLVMValueRef generateFunctionArguments(Generator* generator, FunctionArguments* context);
+LLVMValueRef generateMemberAccess(Generator* generator, MemberAccess* context);
+LLVMValueRef generatePostfix(Generator* generator, PostfixExpression* context);
+LLVMValueRef generateUnary(Generator* generator, UnaryExpression* context);
+LLVMValueRef generateMultiplicative(Generator* generator, BinaryExpression* context);
+LLVMValueRef generateAdditive(Generator* generator, BinaryExpression* context);
+LLVMValueRef generateShift(Generator* generator, BinaryExpression* context);
+LLVMValueRef generateRelational(Generator* generator, BinaryExpression* context);
+LLVMValueRef generateEquality(Generator* generator, BinaryExpression* context);
+LLVMValueRef generateAnd(Generator* generator, BinaryExpression* context);
+LLVMValueRef generateExclusiveOr(Generator* generator, BinaryExpression* context);
+LLVMValueRef generateInclusiveOr(Generator* generator, BinaryExpression* context);
+LLVMValueRef generateLogicalAnd(Generator* generator, BinaryExpression* context);
+LLVMValueRef generateLogicalOr(Generator* generator, BinaryExpression* context);
+LLVMValueRef generateConditional(Generator* generator, ConditionalExpression* context);
+LLVMValueRef generateAssignment(Generator* generator, BinaryExpression* context);
+LLVMValueRef generateExpression(Generator* generator, Context* context);
 void generateBlock(Generator* generator, Block* block, int32_t depth);
 void generateFunction(Generator* generator, Function* function);
 void generateFunctions(Generator* generator, Module* module);
@@ -8,8 +30,247 @@ bool generateLLVM(Generator* generator, Module* module, const char* name);
 
 #define invalidate(generator) generator->scope = generator->scope->parent
 
+LLVMValueRef generateArray(Generator* generator, ArrayExpression* context) {
+    LLVMValueRef result;
+    return result;
+}
+
+LLVMValueRef generateNew(Generator* generator, NewExpression* context) {
+    LLVMValueRef result;
+    return result;
+}
+
+LLVMValueRef generatePrimary(Generator* generator, void* context, bool token) {
+    LLVMValueRef result;
+    if (token) {
+        printf("%s\n", ((Token*)context)->text);
+    }
+    else {
+        Context* context0 = (Context*)context;
+        switch (context0->tag) {
+            case CONTEXT_ASSIGNMENT_EXPRESSION: {
+                result = generateExpression(generator, (BinaryExpression*)context0);
+                break;
+            }
+
+            case CONTEXT_NEW_EXPRESSION: {
+                result = generateNew(generator, (NewExpression*)context0);
+                break;
+            }
+
+            case CONTEXT_ARRAY_EXPRESSION: {
+                result = generateArray(generator, (ArrayExpression*)context0);
+                break;
+            }
+        }
+    }
+
+    return result;
+}
+
+LLVMValueRef generateSubscript(Generator* generator, Subscript* context) {
+    LLVMValueRef result;
+    return result;
+}
+
+LLVMValueRef generateFunctionArguments(Generator* generator, FunctionArguments* context) {
+    LLVMValueRef result;
+    return result;
+}
+
+LLVMValueRef generateMemberAccess(Generator* generator, MemberAccess* context) {
+    LLVMValueRef result;
+    return result;
+}
+
+LLVMValueRef generatePostfix(Generator* generator, PostfixExpression* context) {
+    LLVMValueRef result = generatePrimary(generator, context->primary, context->token);
+
+    for (int32_t i = 0; i < context->postfixParts->m_size; i++) {
+        Context* postfixPart = context->postfixParts->m_values[i];
+        switch (postfixPart->tag) {
+            case CONTEXT_SUBSCRIPT: {
+                generateSubscript(generator, (Subscript*)postfixPart);
+                break;
+            }
+
+            case CONTEXT_FUNCTION_ARGUMENTS: {
+                generateFunctionArguments(generator, (FunctionArguments*)postfixPart);
+                break;
+            }
+
+            case CONTEXT_MEMBER_ACCESS: {
+                generateMemberAccess(generator, (MemberAccess*)postfixPart);
+                break;
+            }
+
+            default: {
+                fprintf(stderr, "[erorr] generatePostfix(): invalid postfixPart->tag");
+                break;
+            }
+        }
+    }
+
+    return result;
+}
+
+LLVMValueRef generateUnary(Generator* generator, UnaryExpression* context) {
+    if (context->operator != NULL) {
+        // TODO: Generate code
+        return generateUnary(generator, (UnaryExpression*)context->expression);
+    }
+
+    return generatePostfix(generator, (PostfixExpression*)context->expression);
+}
+
+LLVMValueRef generateMultiplicative(Generator* generator, BinaryExpression* context) {
+    LLVMValueRef result = generateUnary(generator, (BinaryExpression*)context->left);
+
+    for (int32_t i = 0; i < context->others->m_size; i++) {
+        jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
+        /* TODO: Update result */
+        generateUnary(generator, (BinaryExpression*)pair->m_right);
+    }
+
+    return result;
+}
+
+LLVMValueRef generateAdditive(Generator* generator, BinaryExpression* context) {
+    LLVMValueRef result = generateMultiplicative(generator, context->left);
+
+    for (int32_t i = 0; i < context->others->m_size; i++) {
+        jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
+        /* TODO: Update result */
+        generateMultiplicative(generator, (BinaryExpression*)pair->m_right);
+    }
+
+    return result;
+}
+
+LLVMValueRef generateShift(Generator* generator, BinaryExpression* context) {
+    LLVMValueRef result = generateAdditive(generator, (BinaryExpression*)context->left);
+
+    for (int32_t i = 0; i < context->others->m_size; i++) {
+        jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
+        /* TODO: Update result */
+        generateAdditive(generator, (BinaryExpression*)pair->m_right);
+    }
+
+    return result;
+}
+
+LLVMValueRef generateRelational(Generator* generator, BinaryExpression* context) {
+    LLVMValueRef result = generateShift(generator, (BinaryExpression*)context->left);
+
+    for (int32_t i = 0; i < context->others->m_size; i++) {
+        jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
+        /* TODO: Update result */
+        generateShift(generator, (BinaryExpression*)pair->m_right);
+    }
+
+    return result;
+}
+
+LLVMValueRef generateEquality(Generator* generator, BinaryExpression* context) {
+    LLVMValueRef result = generateRelational(generator, (BinaryExpression*)context->left);
+
+    for (int32_t i = 0; i < context->others->m_size; i++) {
+        jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
+        /* TODO: Update result */
+        generateRelational(generator, (BinaryExpression*)pair->m_right);
+    }
+
+    return result;
+}
+
+LLVMValueRef generateAnd(Generator* generator, BinaryExpression* context) {
+    LLVMValueRef result = generateEquality(generator, (BinaryExpression*)context->left);
+
+    for (int32_t i = 0; i < context->others->m_size; i++) {
+        jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
+        /* TODO: Update result */
+        generateEquality(generator, (BinaryExpression*)pair->m_right);
+    }
+
+    return result;
+}
+
+LLVMValueRef generateExclusiveOr(Generator* generator, BinaryExpression* context) {
+    LLVMValueRef result = generateAnd(generator, (BinaryExpression*)context->left);
+
+    for (int32_t i = 0; i < context->others->m_size; i++) {
+        jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
+        /* TODO: Update result */
+        generateAnd(generator, (BinaryExpression*)pair->m_right);
+    }
+
+    return result;
+}
+
+LLVMValueRef generateInclusiveOr(Generator* generator, BinaryExpression* context) {
+    LLVMValueRef result = generateExclusiveOr(generator, (BinaryExpression*)context->left);
+
+    for (int32_t i = 0; i < context->others->m_size; i++) {
+        jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
+        /* TODO: Update result */
+        generateExclusiveOr(generator, (BinaryExpression*)pair->m_right);
+    }
+
+    return result;
+}
+
+LLVMValueRef generateLogicalAnd(Generator* generator, BinaryExpression* context) {
+    LLVMValueRef result = generateInclusiveOr(generator, (BinaryExpression*)context->left);
+
+    for (int32_t i = 0; i < context->others->m_size; i++) {
+        jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
+        /* TODO: Update result */
+        generateInclusiveOr(generator, (BinaryExpression*)pair->m_right);
+    }
+
+    return result;
+}
+
+LLVMValueRef generateLogicalOr(Generator* generator, BinaryExpression* context) {
+    LLVMValueRef result = generateLogicalAnd(generator, (BinaryExpression*)context->left);
+
+    for (int32_t i = 0; i < context->others->m_size; i++) {
+        jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
+        /* TODO: Update result */
+        generateLogicalAnd(generator, (BinaryExpression*)pair->m_right);
+    }
+
+    return result;
+}
+
+LLVMValueRef generateConditional(Generator* generator, ConditionalExpression* context) {
+    LLVMValueRef result = generateLogicalOr(generator, (BinaryExpression*)context->condition);
+
+    if (context->hook != NULL) {
+        /* TODO: Update result */
+        generateExpression(generator, (Context*)context->then);
+        generateConditional(generator, (ConditionalExpression*)context->otherwise);
+    }
+
+    return result;
+}
+
+LLVMValueRef generateAssignment(Generator* generator, BinaryExpression* context) {
+    LLVMValueRef result;
+
+    for (int32_t i = 0; i < context->others->m_size; i++) {
+        ConditionalExpression* other = (ConditionalExpression*)context->others->m_values[i];
+        result = generateConditional(generator, (ConditionalExpression*)other);
+    }
+
+    /* TODO */
+    result = generateConditional(generator, (ConditionalExpression*)context->left);
+
+    return result;
+}
+
 LLVMValueRef generateExpression(Generator* generator, Context* context) {
-    return LLVMConstIntOfStringAndSize(LLVMInt32TypeInContext(generator->llvmContext), "10", 2, 10);
+    return generateAssignment(generator, (BinaryExpression*)context);
 }
 
 void generateBlock(Generator* generator, Block* block, int32_t depth) {
@@ -23,7 +284,8 @@ void generateBlock(Generator* generator, Block* block, int32_t depth) {
                 ReturnStatement* statement = (ReturnStatement*)context;
                 if (statement->expression != NULL) {
                     LLVMValueRef llvmValue = generateExpression(generator, (Context*)statement->expression);
-                    LLVMBuildRet(generator->llvmBuilder, llvmValue);
+                    LLVMValueRef temporary = LLVMConstIntOfStringAndSize(LLVMInt32TypeInContext(generator->llvmContext), "10", 2, 10);
+                    LLVMBuildRet(generator->llvmBuilder, temporary);
                 }
                 else {
                     LLVMBuildRetVoid(generator->llvmBuilder);

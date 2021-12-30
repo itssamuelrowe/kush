@@ -1422,7 +1422,7 @@ BinaryExpression* parseAssignmentExpression(Parser* parser) {
 
 /*
  * conditionalExpression
- * :	condition ('then' expression 'else' conditionalExpression)?
+ * :	condition ('?' expression ':' conditionalExpression)?
  * ;
  */
 ConditionalExpression* parseConditionalExpression(Parser* parser) {
