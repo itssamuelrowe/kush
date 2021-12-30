@@ -235,15 +235,16 @@ LLVMValueRef generateEquality(Generator* generator, BinaryExpression* context) {
 }
 
 LLVMValueRef generateAnd(Generator* generator, BinaryExpression* context) {
-    LLVMValueRef result = generateEquality(generator, (BinaryExpression*)context->left);
+    LLVMValueRef lhs = generateEquality(generator, (BinaryExpression*)context->left);
 
     for (int32_t i = 0; i < context->others->m_size; i++) {
         jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
-        /* TODO: Update result */
-        generateEquality(generator, (BinaryExpression*)pair->m_right);
+        LLVMValueRef rhs = generateEquality(generator, (BinaryExpression*)pair->m_right);
+
+        lhs = LLVMBuildAnd(generator->llvmBuilder, lhs, rhs, "and");
     }
 
-    return result;
+    return lhs;
 }
 
 LLVMValueRef generateExclusiveOr(Generator* generator, BinaryExpression* context) {
