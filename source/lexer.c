@@ -90,6 +90,8 @@ static void integerLiteral(Lexer* lexer);
 
 #define isIntegerSuffix(c) (c == 'l') || (c == 'L')
 
+#define isWhitespace(c) (c == ' ') || (c == '\t')
+
 /* Constructor */
 
 Lexer* lexerNew(Compiler* compiler) {
@@ -701,12 +703,13 @@ Token* nextToken(Lexer* lexer) {
                 break;
             }
 
-            case ' '  : {
-                if (lexer->la1 == ' ') {
+            case ' ':
+            case '\t': {
+                if (isWhitespace(lexer->la1)) {
                     do {
                         consume(lexer);
                     }
-                    while (lexer->la1 == ' ');
+                    while (isWhitespace(lexer->la1));
 
                     /* This token belongs to the WHITESPACE rule. */
                     lexer->type = TOKEN_WHITESPACE;
