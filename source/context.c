@@ -270,6 +270,8 @@ void initializePrimitives(LLVMContextRef llvmContext) {
     primitives.f64.arrayTypes = jtk_ArrayList_new();
     primitives.f64.llvmType = LLVMDoubleTypeInContext(llvmContext);
 
+    primitives.void_.llvmType = LLVMVoidTypeInContext(llvmContext);
+
     primitives.string.arrayTypes = jtk_ArrayList_new();
     // TODO: primitives.string.llvmType = ();
 }
