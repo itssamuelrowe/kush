@@ -342,15 +342,56 @@ LLVMValueRef generateRelational(Generator* generator, BinaryExpression* context)
 }
 
 LLVMValueRef generateEquality(Generator* generator, BinaryExpression* context) {
-    LLVMValueRef result = generateRelational(generator, (BinaryExpression*)context->left);
+    LLVMValueRef lhs = generateRelational(generator, (BinaryExpression*)context->left);
 
     for (int32_t i = 0; i < context->others->m_size; i++) {
         jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
-        /* TODO: Update result */
-        generateRelational(generator, (BinaryExpression*)pair->m_right);
+        LLVMValueRef rhs = generateRelational(generator, (BinaryExpression*)pair->m_right);
+        TokenType tokenType = ((Token*)pair->m_left)->type;
+
+        if (/*context->type->tag == TYPE_DECIMAL*/ false) {
+            LLVMRealPredicate predicate;
+            switch (tokenType) {
+                case TOKEN_EQUAL_2: {
+                    predicate = LLVMRealOEQ;
+                    break;
+                }
+
+                case TOKEN_EXCLAMATION_MARK_EQUAL: {
+                    predicate = LLVMRealONE;
+                    break;
+                }
+
+                default: {
+                    controlError();
+                    break;
+                }
+            }
+            lhs = LLVMBuildFCmp(generator->llvmBuilder, predicate, lhs, rhs, "equality");
+        }
+        else {
+            LLVMIntPredicate predicate;
+            switch (tokenType) {
+                case TOKEN_EQUAL_2: {
+                    predicate = LLVMIntEQ;
+                    break;
+                }
+
+                case TOKEN_EXCLAMATION_MARK_EQUAL: {
+                    predicate = LLVMIntNE;
+                    break;
+                }
+
+                default: {
+                    controlError();
+                    break;
+                }
+            }
+            lhs = LLVMBuildICmp(generator->llvmBuilder, predicate, lhs, rhs, "equality");
+        }
     }
 
-    return result;
+    return lhs;
 }
 
 LLVMValueRef generateAnd(Generator* generator, BinaryExpression* context) {
