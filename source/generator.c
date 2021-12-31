@@ -608,7 +608,7 @@ void generateVariableDeclaration(Generator* generator, VariableDeclaration* cont
         Variable* variable = (Variable*)context->variables->m_values[j];
 
         variable->llvmValue = LLVMBuildAlloca(generator->llvmBuilder, variable->type->llvmType,
-            variable->identifier->text);
+            "");
 
         if (variable->expression != NULL) {
             LLVMValueRef rhs = generateExpression(generator, (Context*)variable->expression);
@@ -924,7 +924,7 @@ void generateIR(Generator* generator, Module* module) {
     generator->output = fopen(sourceName, "w+");
     generateLLVM(generator, module, sourceName);
 
-    fprintf(generator->output, "\ndefine i32 @main() {\nret i32 0\n}");
+    // fprintf(generator->output, "\ndefine i32 @main() {\nret i32 0\n}");
     fclose(generator->output);
 
     deallocate(sourceName);

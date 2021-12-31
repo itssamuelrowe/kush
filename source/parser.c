@@ -1719,6 +1719,11 @@ PostfixExpression* parsePostfixExpression(Parser* parser) {
                 jtk_ArrayList_add(context->postfixParts, memberAccess);
                 break;
             }
+
+            default: {
+                controlError();
+                break;
+            }
         }
         la1 = la(parser, 1);
     }
