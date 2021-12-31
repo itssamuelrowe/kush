@@ -1056,7 +1056,9 @@ BreakStatement* parseBreakStatement(Parser* parser) {
 ReturnStatement* parseReturnStatement(Parser* parser) {
     ReturnStatement* context = newReturnStatement();
     context->keyword = matchAndYield(parser, TOKEN_KEYWORD_RETURN);
-    context->expression = parseExpression(parser);
+    if (la(parser, 1) != TOKEN_SEMICOLON) {
+        context->expression = parseExpression(parser);
+    }
     return context;
 }
 
