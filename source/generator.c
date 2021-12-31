@@ -166,12 +166,44 @@ LLVMValueRef generatePostfix(Generator* generator, PostfixExpression* context) {
 }
 
 LLVMValueRef generateUnary(Generator* generator, UnaryExpression* context) {
+    LLVMValueRef lhs;
     if (context->operator != NULL) {
-        // TODO: Generate code
-        return generateUnary(generator, (UnaryExpression*)context->expression);
+        lhs = generateUnary(generator, (UnaryExpression*)context->expression);
+        switch (context->operator->type) {
+            /* The `+` unary operator does nothing. */
+            case TOKEN_PLUS: {
+                break;
+            }
+
+            case TOKEN_DASH: {
+                LLVMValueRef rhs = LLVMConstIntOfStringAndSize(
+                    LLVMInt32TypeInContext(generator->llvmContext), "-1", 2, 10);
+                LLVMBuildMul(generator->llvmBuilder, lhs, rhs, "negate");
+                break;
+            }
+
+            /* Both `~` and `!` operators generate the same instruction. The semantic analyzer
+             * is responsible for ensuring `!` always works with boolean values. Otherwise
+             * the result will be "undefined".
+             * 
+             * TODO: Does not work for some reason.
+             */
+            case TOKEN_TILDE:
+            case TOKEN_EXCLAMATION_MARK: {
+                LLVMBuildNot(generator->llvmBuilder, lhs, "bitwise_not");
+                break;
+            }
+
+            default: {
+                fprintf(stderr, "[error] generateUnary(): invalid token type\n");
+            }
+        }
+    }
+    else {
+        lhs = generatePostfix(generator, (PostfixExpression*)context->expression);
     }
 
-    return generatePostfix(generator, (PostfixExpression*)context->expression);
+    return lhs;
 }
 
 LLVMValueRef generateMultiplicative(Generator* generator, BinaryExpression* context) {
