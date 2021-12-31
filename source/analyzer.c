@@ -263,7 +263,9 @@ void defineFunction(Analyzer* analyzer, Function* function) {
         }
     }
 
-    defineLocals(analyzer, function->body);
+    if (function->body != NULL) {
+        defineLocals(analyzer, function->body);
+    }
 
     invalidate(analyzer);
 }
@@ -536,7 +538,9 @@ void resolveFunction(Analyzer* analyzer, Function* function) {
     }
 
     analyzer->scope = function->scope;
-    resolveLocals(analyzer, function->body);
+    if (function->body != NULL) {
+        resolveLocals(analyzer, function->body);
+    }
     invalidate(analyzer);
 
     function->totalReferences = analyzer->index;

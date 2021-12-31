@@ -765,18 +765,20 @@ void generateFunction(Generator* generator, Function* function) {
     LLVMTypeRef llvmFunctionType = LLVMFunctionType(function->returnType->llvmType, llvmParameterTypes, parameterCount, false);
     LLVMValueRef llvmFunction = LLVMAddFunction(generator->llvmModule, function->name, llvmFunctionType);
     function->llvmValue = llvmFunction;
+    
+    if (function->body != NULL) {
+        for (int32_t i = 0; i < parameterCount; i++) {
+            Variable* parameter = (Variable*)function->parameters->m_values[i];
+            parameter->llvmValue = LLVMGetParam(llvmFunction, i);
+            parameter->parameter = true;
+        }
 
-    for (int32_t i = 0; i < parameterCount; i++) {
-        Variable* parameter = (Variable*)function->parameters->m_values[i];
-        parameter->llvmValue = LLVMGetParam(llvmFunction, i);
-        parameter->parameter = true;
+        LLVMBasicBlockRef llvmBlock = LLVMAppendBasicBlockInContext(generator->llvmContext, llvmFunction, "");
+        generator->llvmBuilder = LLVMCreateBuilder();
+        LLVMPositionBuilderAtEnd(generator->llvmBuilder, llvmBlock);
+
+        generateBlock(generator, function->body);
     }
-
-    LLVMBasicBlockRef llvmBlock = LLVMAppendBasicBlockInContext(generator->llvmContext, llvmFunction, "");
-    generator->llvmBuilder = LLVMCreateBuilder();
-    LLVMPositionBuilderAtEnd(generator->llvmBuilder, llvmBlock);
-
-    generateBlock(generator, function->body);
 
     invalidate(generator);
     deallocate(llvmParameterTypes);
