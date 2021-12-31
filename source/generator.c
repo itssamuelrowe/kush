@@ -330,15 +330,77 @@ LLVMValueRef generateShift(Generator* generator, BinaryExpression* context) {
 }
 
 LLVMValueRef generateRelational(Generator* generator, BinaryExpression* context) {
-    LLVMValueRef result = generateShift(generator, (BinaryExpression*)context->left);
+    LLVMValueRef lhs = generateShift(generator, (BinaryExpression*)context->left);
 
     for (int32_t i = 0; i < context->others->m_size; i++) {
         jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
-        /* TODO: Update result */
-        generateShift(generator, (BinaryExpression*)pair->m_right);
+        LLVMValueRef rhs = generateShift(generator, (BinaryExpression*)pair->m_right);
+
+        TokenType tokenType = ((Token*)pair->m_left)->type;
+
+        if (/*expression->type->tag == TYPE_DECIMAL*/false) {
+            LLVMRealPredicate predicate;
+            switch (tokenType) {
+                case TOKEN_LEFT_ANGLE_BRACKET: {
+                    predicate = LLVMRealOLT;
+                    break;
+                }
+
+                case TOKEN_RIGHT_ANGLE_BRACKET: {
+                    predicate = LLVMRealOGT;
+                    break;
+                }
+
+                case TOKEN_LEFT_ANGLE_BRACKET_EQUAL: {
+                    predicate = LLVMRealOLE;
+                    break;
+                }
+
+                case TOKEN_RIGHT_ANGLE_BRACKET_EQUAL: {
+                    predicate = LLVMRealOGE;
+                    break;
+                }
+
+                default: {
+                    controlError();
+                    break;
+                }
+            }
+            lhs = LLVMBuildFCmp(generator->llvmBuilder, predicate, lhs, rhs, "relational");
+        }
+        else {
+            LLVMIntPredicate predicate;
+            switch (tokenType) {
+                case TOKEN_LEFT_ANGLE_BRACKET: {
+                    predicate = LLVMIntSLT;
+                    break;
+                }
+
+                case TOKEN_RIGHT_ANGLE_BRACKET: {
+                    predicate = LLVMIntSGT;
+                    break;
+                }
+
+                case TOKEN_LEFT_ANGLE_BRACKET_EQUAL: {
+                    predicate = LLVMIntSLE;
+                    break;
+                }
+
+                case TOKEN_RIGHT_ANGLE_BRACKET_EQUAL: {
+                    predicate = LLVMIntSGE;
+                    break;
+                }
+
+                default: {
+                    controlError();
+                    break;
+                }
+            }
+            lhs = LLVMBuildICmp(generator->llvmBuilder, predicate, lhs, rhs, "relational");
+        }
     }
 
-    return result;
+    return lhs;
 }
 
 LLVMValueRef generateEquality(Generator* generator, BinaryExpression* context) {
