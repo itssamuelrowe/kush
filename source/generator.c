@@ -101,6 +101,18 @@ LLVMValueRef generatePrimary(Generator* generator, void* context, bool token) {
                         token0->length);
                 break;
             }
+
+            case TOKEN_KEYWORD_TRUE: {
+                result = LLVMConstIntOfStringAndSize(
+                    LLVMInt8TypeInContext(generator->llvmContext), "1", 1, 10);
+                break;
+            }
+
+            case TOKEN_KEYWORD_FALSE: {
+                result = LLVMConstIntOfStringAndSize(
+                    LLVMInt8TypeInContext(generator->llvmContext), "0", 1, 10);
+                break;
+            }
         }
     }
     else {
