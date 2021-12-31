@@ -6,7 +6,8 @@ LLVMValueRef generateNew(Generator* generator, NewExpression* context);
 int32_t getRadix(const uint8_t** text, int32_t* length);
 LLVMValueRef generatePrimary(Generator* generator, void* context, bool token, Symbol** symbol);
 LLVMValueRef generateSubscript(Generator* generator, Subscript* context);
-LLVMValueRef generateFunctionArguments(Generator* generator, FunctionArguments* context);
+LLVMValueRef generateFunctionArguments(Generator* generator, Function* function,
+    FunctionArguments* context);
 LLVMValueRef generateMemberAccess(Generator* generator, MemberAccess* context);
 LLVMValueRef generatePostfix(Generator* generator, PostfixExpression* context);
 LLVMValueRef generateUnary(Generator* generator, UnaryExpression* context);
@@ -176,8 +177,16 @@ LLVMValueRef generateSubscript(Generator* generator, Subscript* context) {
     return result;
 }
 
-LLVMValueRef generateFunctionArguments(Generator* generator, FunctionArguments* context) {
-    LLVMValueRef result;
+LLVMValueRef generateFunctionArguments(Generator* generator, Function* function,
+    FunctionArguments* context) {
+    int32_t count = context->expressions->m_size;
+    LLVMValueRef* llvmArguments = allocate(LLVMValueRef, count);
+    for (int i = 0; i < count; i++) {
+        Context* argument = (Context*)jtk_ArrayList_getValue(context->expressions, i);
+        llvmArguments[i] = generateExpression(generator, argument);
+    }
+    LLVMValueRef result = LLVMBuildCall(generator->llvmBuilder, function->llvmValue, llvmArguments, count, "");
+    deallocate(llvmArguments);
     return result;
 }
 
@@ -199,7 +208,7 @@ LLVMValueRef generatePostfix(Generator* generator, PostfixExpression* context) {
             }
 
             case CONTEXT_FUNCTION_ARGUMENTS: {
-                generateFunctionArguments(generator, (FunctionArguments*)postfixPart);
+                generateFunctionArguments(generator, (Function*)symbol, (FunctionArguments*)postfixPart);
                 break;
             }
 
