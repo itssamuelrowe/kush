@@ -549,6 +549,17 @@ LLVMValueRef generateExpression(Generator* generator, Context* context) {
     return generateAssignment(generator, (BinaryExpression*)context);
 }
 
+
+void generateReturn(Generator* generator, ReturnStatement* context) {
+    if (context->expression != NULL) {
+        LLVMValueRef llvmValue = generateExpression(generator, (Context*)context->expression);
+        LLVMBuildRet(generator->llvmBuilder, llvmValue);
+    }
+    else {
+        LLVMBuildRetVoid(generator->llvmBuilder);
+    }
+}
+
 void generateBlock(Generator* generator, Block* block, int32_t depth) {
     generator->scope = block->scope;
     
@@ -557,14 +568,7 @@ void generateBlock(Generator* generator, Block* block, int32_t depth) {
         Context* context = (Context*)block->statements->m_values[i];
         switch (context->tag) {
             case CONTEXT_RETURN_STATEMENT: {
-                ReturnStatement* statement = (ReturnStatement*)context;
-                if (statement->expression != NULL) {
-                    LLVMValueRef llvmValue = generateExpression(generator, (Context*)statement->expression);
-                    LLVMBuildRet(generator->llvmBuilder, llvmValue);
-                }
-                else {
-                    LLVMBuildRetVoid(generator->llvmBuilder);
-                }
+                generateReturn(generator, (ReturnStatement*)context);
                 break;
             }
 
