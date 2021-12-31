@@ -549,6 +549,20 @@ LLVMValueRef generateExpression(Generator* generator, Context* context) {
     return generateAssignment(generator, (BinaryExpression*)context);
 }
 
+void generateVariableDeclaration(Generator* generator, VariableDeclaration* context) {
+    int32_t count = context->variables->m_size;
+    for (int32_t j = 0; j < count; j++) {
+        Variable* variable = (Variable*)context->variables->m_values[j];
+
+        variable->llvmValue = LLVMBuildAlloca(generator->llvmBuilder, variable->type->llvmType,
+            variable->identifier->text);
+
+        if (variable->expression != NULL) {
+            LLVMValueRef rhs = generateExpression(generator, (Context*)variable->expression);
+            LLVMBuildStore(generator->llvmBuilder, rhs, variable->llvmValue);
+        }
+    }
+}
 
 void generateReturn(Generator* generator, ReturnStatement* context) {
     if (context->expression != NULL) {
@@ -567,6 +581,11 @@ void generateBlock(Generator* generator, Block* block, int32_t depth) {
     for (int i = 0; i < statementCount; i++) {
         Context* context = (Context*)block->statements->m_values[i];
         switch (context->tag) {
+            case CONTEXT_VARIABLE_DECLARATION: {
+                generateVariableDeclaration(generator, (VariableDeclaration*)context);
+                break;
+            }
+
             case CONTEXT_RETURN_STATEMENT: {
                 generateReturn(generator, (ReturnStatement*)context);
                 break;
