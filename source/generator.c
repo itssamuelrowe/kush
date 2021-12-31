@@ -4,7 +4,7 @@
 LLVMValueRef generateArray(Generator* generator, ArrayExpression* context);
 LLVMValueRef generateNew(Generator* generator, NewExpression* context);
 int32_t getRadix(const uint8_t** text, int32_t* length);
-LLVMValueRef generatePrimary(Generator* generator, void* context, bool token);
+LLVMValueRef generatePrimary(Generator* generator, void* context, bool token, Symbol** symbol);
 LLVMValueRef generateSubscript(Generator* generator, Subscript* context);
 LLVMValueRef generateFunctionArguments(Generator* generator, FunctionArguments* context);
 LLVMValueRef generateMemberAccess(Generator* generator, MemberAccess* context);
@@ -81,7 +81,7 @@ int32_t getRadix(const uint8_t** text, int32_t* length) {
     return radix;
 }
 
-LLVMValueRef generatePrimary(Generator* generator, void* context, bool token) {
+LLVMValueRef generatePrimary(Generator* generator, void* context, bool token, Symbol** symbol) {
     LLVMValueRef result;
     if (token) {
         Token* token0 = (Token*)context;
@@ -121,6 +121,26 @@ LLVMValueRef generatePrimary(Generator* generator, void* context, bool token) {
                 break;
             }
 
+            case TOKEN_IDENTIFIER: {
+                Symbol* resolved = resolveSymbol(generator->scope, token0->text);
+                *symbol = resolved;
+                if (resolved->tag == CONTEXT_VARIABLE) {
+                    Variable* variable = (Variable*)resolved;
+                    if (generator->validLeftValue) {
+                        result = variable->llvmValue;
+                    }
+                    else {
+                        if (variable->parameter) {
+                            result = variable->llvmValue;
+                        }
+                        else {
+                            result = LLVMBuildLoad(generator->llvmBuilder, variable->llvmValue, "");
+                        }
+                    }
+                }
+                break;
+            }
+
             default: {
                 controlError();
                 break;
@@ -130,6 +150,7 @@ LLVMValueRef generatePrimary(Generator* generator, void* context, bool token) {
     else {
         Context* context0 = (Context*)context;
         switch (context0->tag) {
+            /* primary expression => (expression) */
             case CONTEXT_ASSIGNMENT_EXPRESSION: {
                 result = generateExpression(generator, (BinaryExpression*)context0);
                 break;
@@ -166,7 +187,8 @@ LLVMValueRef generateMemberAccess(Generator* generator, MemberAccess* context) {
 }
 
 LLVMValueRef generatePostfix(Generator* generator, PostfixExpression* context) {
-    LLVMValueRef result = generatePrimary(generator, context->primary, context->token);
+    Symbol* symbol = NULL;
+    LLVMValueRef result = generatePrimary(generator, context->primary, context->token, &symbol);
 
     for (int32_t i = 0; i < context->postfixParts->m_size; i++) {
         Context* postfixPart = context->postfixParts->m_values[i];
@@ -532,17 +554,32 @@ LLVMValueRef generateConditional(Generator* generator, ConditionalExpression* co
 }
 
 LLVMValueRef generateAssignment(Generator* generator, BinaryExpression* context) {
-    LLVMValueRef result;
+    LLVMValueRef lhs;
+    bool previousVLV = generator->validLeftValue;
 
-    for (int32_t i = 0; i < context->others->m_size; i++) {
-        ConditionalExpression* other = (ConditionalExpression*)context->others->m_values[i];
-        result = generateConditional(generator, (ConditionalExpression*)other);
+    int count = context->others->m_size;
+    if (count > 0) {
+        generator->validLeftValue = false;
+        jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[count - 1];
+        LLVMValueRef rhs = generateConditional(generator, (Context*)pair->m_right);
+
+        generator->validLeftValue = true;
+        for (int i = count - 2; i >= 0; i--) {
+            jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
+            LLVMValueRef current = generateConditional(generator, (Context*)pair->m_right);
+            rhs = LLVMBuildStore(generator->llvmBuilder, rhs, current);
+        }
+
+        lhs = generateConditional(generator, context->left);
+        LLVMBuildStore(generator->llvmBuilder, rhs, lhs);
     }
+    else {
+        generator->validLeftValue = false;
+        lhs = generateConditional(generator, context->left);
+    }
+    generator->validLeftValue = previousVLV;
 
-    /* TODO */
-    result = generateConditional(generator, (ConditionalExpression*)context->left);
-
-    return result;
+    return lhs;
 }
 
 LLVMValueRef generateExpression(Generator* generator, Context* context) {
@@ -581,6 +618,11 @@ void generateBlock(Generator* generator, Block* block, int32_t depth) {
     for (int i = 0; i < statementCount; i++) {
         Context* context = (Context*)block->statements->m_values[i];
         switch (context->tag) {
+            case CONTEXT_ASSIGNMENT_EXPRESSION: {
+                generateExpression(generator, (BinaryExpression*)context);
+                break;
+            }
+
             case CONTEXT_VARIABLE_DECLARATION: {
                 generateVariableDeclaration(generator, (VariableDeclaration*)context);
                 break;
@@ -733,6 +775,7 @@ Generator* newGenerator(Compiler* compiler) {
     generator->compiler = compiler;
     generator->scope = NULL;
     generator->llvmContext = compiler->llvmContext;
+    generator->validLeftValue = false;
     return generator;
 }
 

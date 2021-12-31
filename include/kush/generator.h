@@ -39,6 +39,7 @@ struct Generator {
 	LLVMValueRef llvmFunction;
 	LLVMBasicBlockRef llvmEndBlock;
     LLVMContextRef llvmContext;
+    bool validLeftValue;
 };
 
 typedef struct Generator Generator;
