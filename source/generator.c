@@ -94,6 +94,13 @@ LLVMValueRef generatePrimary(Generator* generator, void* context, bool token) {
                     LLVMInt32TypeInContext(generator->llvmContext), text, length, radix);
                 break;
             }
+
+            case TOKEN_FLOATING_POINT_LITERAL: {
+                result = LLVMConstRealOfStringAndSize(
+                    LLVMDoubleTypeInContext(generator->llvmContext), token0->text,
+                        token0->length);
+                break;
+            }
         }
     }
     else {
