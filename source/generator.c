@@ -231,7 +231,7 @@ LLVMValueRef generateUnary(Generator* generator, UnaryExpression* context) {
             case TOKEN_DASH: {
                 LLVMValueRef rhs = LLVMConstIntOfStringAndSize(
                     LLVMInt32TypeInContext(generator->llvmContext), "-1", 2, 10);
-                LLVMBuildMul(generator->llvmBuilder, lhs, rhs, "negate");
+                LLVMBuildMul(generator->llvmBuilder, lhs, rhs, "");
                 break;
             }
 
@@ -243,7 +243,7 @@ LLVMValueRef generateUnary(Generator* generator, UnaryExpression* context) {
              */
             case TOKEN_TILDE:
             case TOKEN_EXCLAMATION_MARK: {
-                LLVMBuildNot(generator->llvmBuilder, lhs, "bitwise_not");
+                LLVMBuildNot(generator->llvmBuilder, lhs, "");
                 break;
             }
 
@@ -269,17 +269,17 @@ LLVMValueRef generateMultiplicative(Generator* generator, BinaryExpression* cont
         Token* token = (Token*)pair->m_left;
         switch (token->type) {
             case TOKEN_ASTERISK: {
-                lhs = LLVMBuildMul(generator->llvmBuilder, lhs, rhs, "multiply");
+                lhs = LLVMBuildMul(generator->llvmBuilder, lhs, rhs, "");
                 break;
             }
 
             case TOKEN_FORWARD_SLASH: {
-                lhs = LLVMBuildSDiv(generator->llvmBuilder, lhs, rhs, "division_for_quotient");
+                lhs = LLVMBuildSDiv(generator->llvmBuilder, lhs, rhs, "");
                 break;
             }
 
             case TOKEN_MODULUS: {
-                lhs = LLVMBuildSRem(generator->llvmBuilder, lhs, rhs, "division_for_remainder");
+                lhs = LLVMBuildSRem(generator->llvmBuilder, lhs, rhs, "");
                 break;
             }
 
@@ -302,12 +302,12 @@ LLVMValueRef generateAdditive(Generator* generator, BinaryExpression* context) {
         Token* token = (Token*)pair->m_left;
         switch (token->type) {
             case TOKEN_PLUS: {
-                lhs = LLVMBuildAdd(generator->llvmBuilder, lhs, rhs, "add");
+                lhs = LLVMBuildAdd(generator->llvmBuilder, lhs, rhs, "");
                 break;
             }
 
             case TOKEN_DASH: {
-                lhs = LLVMBuildSub(generator->llvmBuilder, lhs, rhs, "subtract");
+                lhs = LLVMBuildSub(generator->llvmBuilder, lhs, rhs, "");
                 break;
             }
 
@@ -331,13 +331,13 @@ LLVMValueRef generateShift(Generator* generator, BinaryExpression* context) {
         Token* token = (Token*)pair->m_left;
         switch (token->type) {
             case TOKEN_LEFT_ANGLE_BRACKET_2: {
-                lhs = LLVMBuildShl(generator->llvmBuilder, lhs, rhs, "shift_left");
+                lhs = LLVMBuildShl(generator->llvmBuilder, lhs, rhs, "");
                 break;
             }
 
             // NOTE: >> is arithmetic shift right and >>> is logical shift right
             case TOKEN_RIGHT_ANGLE_BRACKET_2: {
-                lhs = LLVMBuildAShr(generator->llvmBuilder, lhs, rhs, "shift_right");
+                lhs = LLVMBuildAShr(generator->llvmBuilder, lhs, rhs, "");
                 break;
             }
 
@@ -388,7 +388,7 @@ LLVMValueRef generateRelational(Generator* generator, BinaryExpression* context)
                     break;
                 }
             }
-            lhs = LLVMBuildFCmp(generator->llvmBuilder, predicate, lhs, rhs, "relational");
+            lhs = LLVMBuildFCmp(generator->llvmBuilder, predicate, lhs, rhs, "");
         }
         else {
             LLVMIntPredicate predicate;
@@ -418,7 +418,7 @@ LLVMValueRef generateRelational(Generator* generator, BinaryExpression* context)
                     break;
                 }
             }
-            lhs = LLVMBuildICmp(generator->llvmBuilder, predicate, lhs, rhs, "relational");
+            lhs = LLVMBuildICmp(generator->llvmBuilder, predicate, lhs, rhs, "");
         }
     }
 
@@ -451,7 +451,7 @@ LLVMValueRef generateEquality(Generator* generator, BinaryExpression* context) {
                     break;
                 }
             }
-            lhs = LLVMBuildFCmp(generator->llvmBuilder, predicate, lhs, rhs, "equality");
+            lhs = LLVMBuildFCmp(generator->llvmBuilder, predicate, lhs, rhs, "");
         }
         else {
             LLVMIntPredicate predicate;
@@ -471,7 +471,7 @@ LLVMValueRef generateEquality(Generator* generator, BinaryExpression* context) {
                     break;
                 }
             }
-            lhs = LLVMBuildICmp(generator->llvmBuilder, predicate, lhs, rhs, "equality");
+            lhs = LLVMBuildICmp(generator->llvmBuilder, predicate, lhs, rhs, "");
         }
     }
 
@@ -485,7 +485,7 @@ LLVMValueRef generateAnd(Generator* generator, BinaryExpression* context) {
         jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
         LLVMValueRef rhs = generateEquality(generator, (BinaryExpression*)pair->m_right);
 
-        lhs = LLVMBuildAnd(generator->llvmBuilder, lhs, rhs, "and");
+        lhs = LLVMBuildAnd(generator->llvmBuilder, lhs, rhs, "");
     }
 
     return lhs;
@@ -498,7 +498,7 @@ LLVMValueRef generateExclusiveOr(Generator* generator, BinaryExpression* context
         jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
         LLVMValueRef rhs = generateAnd(generator, (BinaryExpression*)pair->m_right);
         
-        lhs = LLVMBuildXor(generator->llvmBuilder, lhs, rhs, "exclusive_or");
+        lhs = LLVMBuildXor(generator->llvmBuilder, lhs, rhs, "");
     }
 
     return lhs;
@@ -511,7 +511,7 @@ LLVMValueRef generateInclusiveOr(Generator* generator, BinaryExpression* context
         jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
         LLVMValueRef rhs = generateExclusiveOr(generator, (BinaryExpression*)pair->m_right);
 
-        lhs = LLVMBuildOr(generator->llvmBuilder, lhs, rhs, "inclusive_or");
+        lhs = LLVMBuildOr(generator->llvmBuilder, lhs, rhs, "");
     }
 
     return lhs;
