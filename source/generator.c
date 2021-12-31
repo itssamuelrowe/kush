@@ -175,15 +175,36 @@ LLVMValueRef generateUnary(Generator* generator, UnaryExpression* context) {
 }
 
 LLVMValueRef generateMultiplicative(Generator* generator, BinaryExpression* context) {
-    LLVMValueRef result = generateUnary(generator, (BinaryExpression*)context->left);
+    LLVMValueRef lhs = generateUnary(generator, (BinaryExpression*)context->left);
 
     for (int32_t i = 0; i < context->others->m_size; i++) {
         jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
-        /* TODO: Update result */
-        generateUnary(generator, (BinaryExpression*)pair->m_right);
+        LLVMValueRef rhs = generateUnary(generator, (BinaryExpression*)pair->m_right);
+
+        Token* token = (Token*)pair->m_left;
+        switch (token->type) {
+            case TOKEN_ASTERISK: {
+                lhs = LLVMBuildMul(generator->llvmBuilder, lhs, rhs, "multiply");
+                break;
+            }
+
+            case TOKEN_FORWARD_SLASH: {
+                lhs = LLVMBuildSDiv(generator->llvmBuilder, lhs, rhs, "division_for_quotient");
+                break;
+            }
+
+            case TOKEN_MODULUS: {
+                lhs = LLVMBuildSRem(generator->llvmBuilder, lhs, rhs, "division_for_remainder");
+                break;
+            }
+
+            default: {
+                fprintf(stderr, "[error] generateMultiplicative(): invalid token type\n");
+            }
+        }
     }
 
-    return result;
+    return lhs;
 }
 
 LLVMValueRef generateAdditive(Generator* generator, BinaryExpression* context) {
@@ -206,7 +227,7 @@ LLVMValueRef generateAdditive(Generator* generator, BinaryExpression* context) {
             }
 
             default: {
-                fprintf(stderr, "[error] generateAdditive: invalid token type");
+                fprintf(stderr, "[error] generateAdditive(): invalid token type\n");
                 break;
             }
         }
@@ -236,7 +257,7 @@ LLVMValueRef generateShift(Generator* generator, BinaryExpression* context) {
             }
 
             default: {
-                fprintf(stderr, "[error] generateShift: invalid token type");
+                fprintf(stderr, "[error] generateShift: invalid token type\n");
                 break;
             }
         }
