@@ -24,6 +24,13 @@ LLVMValueRef generateLogicalOr(Generator* generator, BinaryExpression* context);
 LLVMValueRef generateConditional(Generator* generator, ConditionalExpression* context);
 LLVMValueRef generateAssignment(Generator* generator, BinaryExpression* context);
 LLVMValueRef generateExpression(Generator* generator, Context* context);
+void generateVariableDeclaration(Generator* generator, VariableDeclaration* context);
+void generateReturn(Generator* generator, ReturnStatement* context);
+void generateIfClause(Generator* generator, IfClause* clause,
+    LLVMBasicBlockRef llvmConditionBlock, LLVMBasicBlockRef llvmThenBlock,
+    LLVMBasicBlockRef llvmElseBlock, LLVMBasicBlockRef llvmExitBlock);
+void generateIf(Generator* generator, IfStatement* context);
+void generateIterative(Generator* generator, IterativeStatement* statement);
 void generateBlock(Generator* generator, Block* block);
 void generateFunction(Generator* generator, Function* function);
 void generateFunctions(Generator* generator, Module* module);
@@ -679,6 +686,26 @@ void generateIf(Generator* generator, IfStatement* context) {
     LLVMPositionBuilderAtEnd(generator->llvmBuilder, llvmExitBlock);
 }
 
+void generateIterative(Generator* generator, IterativeStatement* statement) {
+    LLVMValueRef llvmFunction = generator->function->llvmValue;
+    LLVMBasicBlockRef llvmConditionBlock = LLVMAppendBasicBlock(llvmFunction, "");
+    LLVMBasicBlockRef llvmThenBlock = LLVMAppendBasicBlock(llvmFunction, "");
+    LLVMBasicBlockRef llvmElseBlock = LLVMAppendBasicBlock(llvmFunction, "");
+
+    /* Make sure that the current basic block has a terminator. */
+    LLVMBuildBr(generator->llvmBuilder, llvmConditionBlock);
+
+    LLVMPositionBuilderAtEnd(generator->llvmBuilder, llvmConditionBlock);
+    LLVMValueRef llvmCondition = generateExpression(generator, (Context*)statement->expression);
+    LLVMBuildCondBr(generator->llvmBuilder, llvmCondition, llvmThenBlock, llvmElseBlock);
+
+    LLVMPositionBuilderAtEnd(generator->llvmBuilder, llvmThenBlock);
+    generateBlock(generator, statement->body);
+    LLVMBuildBr(generator->llvmBuilder, llvmConditionBlock);
+
+    LLVMPositionBuilderAtEnd(generator->llvmBuilder, llvmElseBlock);
+}
+
 void generateBlock(Generator* generator, Block* block) {
     generator->scope = block->scope;
     
@@ -703,6 +730,11 @@ void generateBlock(Generator* generator, Block* block) {
 
             case CONTEXT_IF_STATEMENT: {
                 generateIf(generator, (IfStatement*)context);
+                break;
+            }
+            
+            case CONTEXT_ITERATIVE_STATEMENT: {
+                generateIterative(generator, (IterativeStatement*)context);
                 break;
             }
 
