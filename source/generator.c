@@ -24,7 +24,7 @@ LLVMValueRef generateLogicalOr(Generator* generator, BinaryExpression* context);
 LLVMValueRef generateConditional(Generator* generator, ConditionalExpression* context);
 LLVMValueRef generateAssignment(Generator* generator, BinaryExpression* context);
 LLVMValueRef generateExpression(Generator* generator, Context* context);
-void generateBlock(Generator* generator, Block* block, int32_t depth);
+void generateBlock(Generator* generator, Block* block);
 void generateFunction(Generator* generator, Function* function);
 void generateFunctions(Generator* generator, Module* module);
 void generateStructures(Generator* generator, Module* module);
@@ -208,7 +208,7 @@ LLVMValueRef generatePostfix(Generator* generator, PostfixExpression* context) {
             }
 
             case CONTEXT_FUNCTION_ARGUMENTS: {
-                generateFunctionArguments(generator, (Function*)symbol, (FunctionArguments*)postfixPart);
+                result = generateFunctionArguments(generator, (Function*)symbol, (FunctionArguments*)postfixPart);
                 break;
             }
 
@@ -620,7 +620,66 @@ void generateReturn(Generator* generator, ReturnStatement* context) {
     }
 }
 
-void generateBlock(Generator* generator, Block* block, int32_t depth) {
+void generateIfClause(Generator* generator, IfClause* clause,
+    LLVMBasicBlockRef llvmConditionBlock, LLVMBasicBlockRef llvmThenBlock,
+    LLVMBasicBlockRef llvmElseBlock, LLVMBasicBlockRef llvmExitBlock) {
+    if (llvmConditionBlock != NULL) {
+        LLVMPositionBuilderAtEnd(generator->llvmBuilder, llvmConditionBlock);
+    }
+    LLVMValueRef llvmCondition = generateExpression(generator, (Context*)clause->expression);
+    LLVMBuildCondBr(generator->llvmBuilder, llvmCondition, llvmThenBlock, llvmElseBlock);
+
+    LLVMPositionBuilderAtEnd(generator->llvmBuilder, llvmThenBlock);
+    generateBlock(generator, clause->body);
+    LLVMBuildBr(generator->llvmBuilder, llvmExitBlock);
+}
+
+void generateIf(Generator* generator, IfStatement* context) {
+    LLVMValueRef llvmFunction = generator->function->llvmValue;
+
+    int elseIfClauseCount = context->elseIfClauses->m_size;
+    /* Break down:
+     *     - 1 block => if clause
+     *     - N * 2 blocks => else if clause blocks + condition blocks
+     *     - 0 or 1 block => else clause
+     *     - 1 block => outside if statement
+     */
+    int blockCount = 2 + elseIfClauseCount * 2 + (context->elseClause != NULL? 1 : 0);
+    LLVMBasicBlockRef* llvmBlocks = allocate(LLVMBasicBlockRef, blockCount);
+    for (int i = 0; i < blockCount; i++) {
+        llvmBlocks[i] = LLVMAppendBasicBlock(llvmFunction, "");
+    }
+
+    /* 0 => If clause block
+     * 1 => Else clause block / Else if clause block / Exit block
+     */
+    LLVMBasicBlockRef llvmExitBlock = llvmBlocks[blockCount - 1];
+    generateIfClause(generator, context->ifClause, NULL, llvmBlocks[0], llvmBlocks[1], llvmExitBlock);
+
+    for (int i = 0; i < elseIfClauseCount; i++) {
+        IfClause* clause = (IfClause*)jtk_ArrayList_getValue(context->elseIfClauses, i);
+        /* base + 0 => Current condition block
+         * base + 1 => Current clause block
+         * base + 2 => Next clause block or exit block
+         */
+        int baseIndex = (i * 2) + 1;
+        generateIfClause(generator, clause, llvmBlocks[baseIndex], llvmBlocks[baseIndex + 1],
+            llvmBlocks[baseIndex + 2], llvmExitBlock);
+    }
+
+    if (context->elseClause != NULL) {
+        /* blockCount - 2 => Else clause
+         * blockCount - 1 => Exit block
+         */
+        LLVMPositionBuilderAtEnd(generator->llvmBuilder, llvmBlocks[blockCount - 2]);
+        generateBlock(generator, context->elseClause);
+        LLVMBuildBr(generator->llvmBuilder, llvmExitBlock);
+    }
+
+    LLVMPositionBuilderAtEnd(generator->llvmBuilder, llvmExitBlock);
+}
+
+void generateBlock(Generator* generator, Block* block) {
     generator->scope = block->scope;
     
     int32_t statementCount = block->statements->m_size;
@@ -639,6 +698,11 @@ void generateBlock(Generator* generator, Block* block, int32_t depth) {
 
             case CONTEXT_RETURN_STATEMENT: {
                 generateReturn(generator, (ReturnStatement*)context);
+                break;
+            }
+
+            case CONTEXT_IF_STATEMENT: {
+                generateIf(generator, (IfStatement*)context);
                 break;
             }
 
@@ -680,7 +744,7 @@ void generateFunction(Generator* generator, Function* function) {
     generator->llvmBuilder = LLVMCreateBuilder();
     LLVMPositionBuilderAtEnd(generator->llvmBuilder, llvmBlock);
 
-    generateBlock(generator, function->body, 0);
+    generateBlock(generator, function->body);
 
     invalidate(generator);
     deallocate(llvmParameterTypes);
