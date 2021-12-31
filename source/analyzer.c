@@ -651,10 +651,18 @@ void resolveBreakStatement(Analyzer* analyzer, BreakStatement* statement) {
 
 void resolveReturnStatement(Analyzer* analyzer, ReturnStatement* statement) {
     ErrorHandler* handler = analyzer->compiler->errorHandler;
-    Type* type = resolveExpression(analyzer, (Context*)statement->expression);
-    if (analyzer->function->returnType != type) {
-        handleSemanticError(handler, analyzer, ERROR_INCOMPATIBLE_RETURN_VALUE,
-            statement->keyword);
+    if (statement->expression == NULL) {
+        if (analyzer->function->returnType != &primitives.void_) {
+            handleSemanticError(handler, analyzer, ERROR_INCOMPATIBLE_RETURN_VALUE,
+                statement->keyword);
+        }
+    }
+    else {
+        Type* type = resolveExpression(analyzer, (Context*)statement->expression);
+        if (analyzer->function->returnType != type) {
+            handleSemanticError(handler, analyzer, ERROR_INCOMPATIBLE_RETURN_VALUE,
+                statement->keyword);
+        }
     }
 }
 
