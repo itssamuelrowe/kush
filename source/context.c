@@ -35,6 +35,7 @@ Type* newType(uint8_t tag, bool indexable, bool accessible, bool callable,
     type->reference = allocatable;
     type->identifier = identifier;
     type->arrayTypes = jtk_ArrayList_new();
+    type->llvmType = NULL;
 
     return type;
 }
