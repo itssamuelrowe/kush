@@ -113,6 +113,18 @@ LLVMValueRef generatePrimary(Generator* generator, void* context, bool token) {
                     LLVMInt8TypeInContext(generator->llvmContext), "0", 1, 10);
                 break;
             }
+
+            case TOKEN_KEYWORD_NULL: {
+                result = LLVMConstNull(
+                    LLVMPointerType(LLVMVoidTypeInContext(generator->llvmContext), 0)
+                );
+                break;
+            }
+
+            default: {
+                controlError();
+                break;
+            }
         }
     }
     else {
