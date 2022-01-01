@@ -610,10 +610,10 @@ void generateVariableDeclaration(Generator* generator, VariableDeclaration* cont
         variable->llvmValue = LLVMBuildAlloca(generator->llvmBuilder, variable->type->llvmType,
             "");
 
-        if (variable->expression != NULL) {
-            LLVMValueRef rhs = generateExpression(generator, (Context*)variable->expression);
-            LLVMBuildStore(generator->llvmBuilder, rhs, variable->llvmValue);
-        }
+        LLVMValueRef rhs = (variable->expression != NULL)?
+            generateExpression(generator, (Context*)variable->expression) :
+            variable->type->llvmDefaultValue;
+        LLVMBuildStore(generator->llvmBuilder, rhs, variable->llvmValue);
     }
 }
 
@@ -817,6 +817,7 @@ void generateConstructor(Generator* generator, Structure* structure, LLVMTypeRef
     LLVMTypeRef llvmFunctionType = LLVMFunctionType(llvmStructurePtr, llvmParameterTypes,
         parameterCount, false);
     LLVMValueRef llvmFunction = LLVMAddFunction(generator->llvmModule, structure->name, llvmFunctionType);
+    structure->llvmConstructor = llvmFunction;
 
     LLVMValueRef llvmParameters[parameterCount];
     for (int32_t j = 0; j < parameterCount; j++) {
@@ -874,6 +875,7 @@ void generateStructures(Generator* generator, Module* module) {
 
         structure->type->llvmType = LLVMStructTypeInContext(generator->llvmContext,
             llvmVariableTypes, totalVariables, false);
+        structure->type->llvmDefaultValue = LLVMConstNull(LLVMPointerType(structure->type->llvmType, 0));
         generateConstructor(generator, structure, llvmVariableTypes, totalVariables);
     }
 }

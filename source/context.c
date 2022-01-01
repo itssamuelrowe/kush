@@ -26,7 +26,8 @@
  *******************************************************************************/
 
 Type* newType(uint8_t tag, bool indexable, bool accessible, bool callable,
-    bool allocatable, Token* identifier) {
+    bool allocatable, Token* identifier, LLVMTypeRef llvmType,
+    LLVMValueRef llvmDefaultValue) {
     Type* type = allocate(Type, 1);
     type->tag = tag;
     type->indexable = indexable;
@@ -36,6 +37,8 @@ Type* newType(uint8_t tag, bool indexable, bool accessible, bool callable,
     type->identifier = identifier;
     type->arrayTypes = jtk_ArrayList_new();
     type->llvmType = NULL;
+    type->llvmType = llvmType;
+    type->llvmDefaultValue = llvmDefaultValue;
 
     return type;
 }
@@ -240,36 +243,47 @@ Primitives primitives = {
 void initializePrimitives(LLVMContextRef llvmContext) {
     primitives.boolean.arrayTypes = jtk_ArrayList_new();
     primitives.boolean.llvmType = LLVMInt1TypeInContext(llvmContext);
+    primitives.boolean.llvmDefaultValue = LLVMConstInt(primitives.boolean.llvmType, 0, false);
 
     primitives.i8.arrayTypes = jtk_ArrayList_new();
     primitives.i8.llvmType = LLVMInt8TypeInContext(llvmContext);
+    primitives.i8.llvmDefaultValue = LLVMConstInt(primitives.i8.llvmType, 0, true);
 
     primitives.i16.arrayTypes = jtk_ArrayList_new();
     primitives.i16.llvmType = LLVMInt16TypeInContext(llvmContext);
+    primitives.i16.llvmDefaultValue = LLVMConstInt(primitives.i16.llvmType, 0, true);
 
     primitives.i32.arrayTypes = jtk_ArrayList_new();
     primitives.i32.llvmType = LLVMInt32TypeInContext(llvmContext);
+    primitives.i32.llvmDefaultValue = LLVMConstInt(primitives.i32.llvmType, 0, true);
 
     primitives.i64.arrayTypes = jtk_ArrayList_new();
     primitives.i64.llvmType = LLVMInt64TypeInContext(llvmContext);
+    primitives.i64.llvmDefaultValue = LLVMConstInt(primitives.i64.llvmType, 0, true);
 
     primitives.ui8.arrayTypes = jtk_ArrayList_new();
     primitives.ui8.llvmType = LLVMInt8TypeInContext(llvmContext);
+    primitives.ui8.llvmDefaultValue = LLVMConstInt(primitives.ui8.llvmType, 0, false);
 
     primitives.ui16.arrayTypes = jtk_ArrayList_new();
     primitives.ui16.llvmType = LLVMInt16TypeInContext(llvmContext);
+    primitives.ui16.llvmDefaultValue = LLVMConstInt(primitives.ui16.llvmType, 0, false);
 
     primitives.ui32.arrayTypes = jtk_ArrayList_new();
     primitives.ui32.llvmType = LLVMInt32TypeInContext(llvmContext);
+    primitives.ui32.llvmDefaultValue = LLVMConstInt(primitives.ui32.llvmType, 0, false);
 
     primitives.ui64.arrayTypes = jtk_ArrayList_new();
     primitives.ui64.llvmType = LLVMInt64TypeInContext(llvmContext);
+    primitives.ui32.llvmDefaultValue = LLVMConstInt(primitives.ui32.llvmType, 0, false);
 
     primitives.f32.arrayTypes = jtk_ArrayList_new();
     primitives.f32.llvmType = LLVMFloatTypeInContext(llvmContext);
+    primitives.f32.llvmDefaultValue = LLVMConstReal(primitives.f32.llvmType, 0);
 
     primitives.f64.arrayTypes = jtk_ArrayList_new();
     primitives.f64.llvmType = LLVMDoubleTypeInContext(llvmContext);
+    primitives.f64.llvmDefaultValue = LLVMConstReal(primitives.f64.llvmType, 0);
 
     primitives.void_.llvmType = LLVMVoidTypeInContext(llvmContext);
 
@@ -521,7 +535,7 @@ Function* newFunction(const uint8_t* name, int32_t nameSize, Token* identifier,
     result->body = body;
     result->returnVariableType = returnVariableType;
     result->returnType = NULL;
-    result->type = newType(TYPE_FUNCTION, false, false, true, false, identifier);
+    result->type = newType(TYPE_FUNCTION, false, false, true, false, identifier, NULL, NULL);
     result->scope = NULL;
     result->totalReferences = 0;
 
@@ -548,7 +562,7 @@ Structure* newStructure(const uint8_t* name, int32_t nameSize,
     result->name = jtk_CString_newEx(name, nameSize);
     result->identifier = identifier;
     result->declarations = variables;
-    result->type = newType(TYPE_STRUCTURE, false, true, false, true, identifier);
+    result->type = newType(TYPE_STRUCTURE, false, true, false, true, identifier, NULL, NULL);
     result->scope = NULL;
 
     // TODO: Probably move this to newType(), or some overloaded version of it?
