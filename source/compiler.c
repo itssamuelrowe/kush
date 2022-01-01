@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <llvm-c/Core.h>
 
 /* The JTK_LOGGER_DISABLE constant is defined in Configuration.h. Therefore,
  * make sure it is included before any other file which may
@@ -359,7 +360,7 @@ void generate(Compiler* compiler) {
     for (i = 0; i < size; i++) {
         compiler->currentFileIndex = i;
         Module* module = compiler->modules[i];
-        generateC(generator, module);
+        generateIR(generator, module);
     }
     deleteGenerator(generator);
 }
@@ -384,15 +385,6 @@ void buildExecutable(Compiler* compiler) {
         output = compiler->output;
         outputSize = compiler->outputSize;
     }
-
-    jtk_StringBuilder_appendEx_z(builder, "../runtime/kush-runtime.c -I../runtime -g -o ", 45);
-    jtk_StringBuilder_appendEx_z(builder, output, outputSize);
-    int32_t commandSize = -1;
-    uint8_t* command = jtk_StringBuilder_toCString(builder, &commandSize);
-    jtk_StringBuilder_delete(builder);
-
-    printf("\033[1;33m[spawn]\033[1;37m %s\n\033[0m", command);
-    system(command);
 }
 
 jtk_ArrayList_t* k_CString_split_c(const uint8_t* sequence, int32_t size,
@@ -563,7 +555,7 @@ bool compileEx(Compiler* compiler, char** arguments, int32_t length) {
             fprintf(stderr, "\033[1;31m[error]\033[0m Please specify input files.\n");
         }
         else {
-            initializePrimitives();
+            initializePrimitives(compiler->llvmContext);
             initialize(compiler);
             buildAST(compiler);
             if (!compiler->dumpTokens && (noErrors = (compiler->errorHandler->errors->m_size == 0))) {
@@ -624,6 +616,7 @@ Compiler* newCompiler() {
     compiler->logger = jtk_Logger_new(jtk_ConsoleLogger_log);
     jtk_Logger_setLevel(compiler->logger, JTK_LOG_LEVEL_NONE);
 #endif
+    compiler->llvmContext = LLVMContextCreate();
 
     return compiler;
 }
@@ -677,5 +670,8 @@ void deleteCompiler(Compiler* compiler) {
 #endif
 
     jtk_ArrayList_delete(compiler->inputFiles);
+
+    LLVMContextDispose(compiler->llvmContext);
+
     deallocate(compiler);
 }

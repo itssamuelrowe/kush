@@ -19,6 +19,8 @@
 #ifndef KUSH_PARSER_CONTEXT_H
 #define KUSH_PARSER_CONTEXT_H
 
+#include <llvm-c/Core.h>
+
 #include <jtk/collection/list/ArrayList.h>
 #include <kush/token.h>
 #include <kush/scope.h>
@@ -49,6 +51,8 @@ struct Type {
     bool reference;
     Token* identifier;
     jtk_ArrayList_t* arrayTypes;
+    LLVMTypeRef llvmType;
+    LLVMValueRef llvmDefaultValue;
     union {
         struct {
             /**
@@ -84,7 +88,8 @@ struct Type {
 };
 
 Type* newType(uint8_t tag, bool indexable, bool accessible, bool callable,
-    bool allocatable, Token* identifier);
+    bool allocatable, Token* identifier, LLVMTypeRef llvmType,
+    LLVMValueRef llvmDefaultValue);
 void deleteType(Type* type);
 
 /*******************************************************************************
@@ -113,7 +118,7 @@ typedef struct Primitives Primitives;
 
 extern Primitives primitives;
 
-void initializePrimitives();
+void initializePrimitives(LLVMContextRef llvmContext);
 void destroyPrimitives();
 
 /*******************************************************************************
@@ -329,6 +334,7 @@ void deletePostfixExpression(PostfixExpression* self);
 struct MemberAccess {
     ContextType tag;
     Token* identifier;
+    Type* previous;
 };
 
 typedef struct MemberAccess MemberAccess;
@@ -429,18 +435,20 @@ struct Variable {
     int32_t nameSize;
     bool infer;
     bool constant;
+    bool parameter;
     VariableType* variableType;
     Type* type;
     Token* identifier;
     BinaryExpression* expression;
     int32_t index;
+    LLVMValueRef llvmValue;
 };
 
 typedef struct Variable Variable;
 
-Variable* newVariable(bool infer, bool constant, VariableType* variableType,
-    const uint8_t* name, int32_t nameSize, Token* identifier,
-    BinaryExpression* expression, Scope* parent);
+Variable* newVariable(bool infer, bool constant, bool parameter,
+    VariableType* variableType, const uint8_t* name, int32_t nameSize,
+    Token* identifier, BinaryExpression* expression, Scope* parent);
 void deleteVariable(Variable* variable);
 
 /*******************************************************************************
@@ -460,6 +468,7 @@ struct Function {
     Type* type;
     Scope* scope;
     int32_t totalReferences;
+    LLVMValueRef llvmValue;
 };
 
 typedef struct Function Function;
@@ -482,6 +491,7 @@ struct Structure {
     jtk_ArrayList_t* declarations;
     Type* type;
     Scope* scope;
+    LLVMValueRef llvmConstructor;
 };
 
 typedef struct Structure Structure;

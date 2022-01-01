@@ -1,926 +1,1038 @@
-/*
- * Copyright 2017-2020 Samuel Rowe, Joel E. Rego
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-// Sunday, June 18 2020
-
-#include <jtk/collection/Pair.h>
-#include <jtk/core/CString.h>
 #include <kush/generator.h>
+#include <jtk/collection/Pair.h>
+
+LLVMValueRef generateArray(Generator* generator, ArrayExpression* context);
+LLVMValueRef generateObject(Generator* generator, NewExpression* expression);
+LLVMValueRef generateNew(Generator* generator, NewExpression* context);
+int32_t getRadix(const uint8_t** text, int32_t* length);
+LLVMValueRef generatePrimary(Generator* generator, void* context, bool token,
+    Symbol** symbol, int32_t count);
+LLVMValueRef generateSubscript(Generator* generator, Subscript* context);
+LLVMValueRef generateFunctionArguments(Generator* generator, Function* function,
+    FunctionArguments* context);
+LLVMValueRef generateMemberAccess(Generator* generator, MemberAccess* context,
+    LLVMValueRef object, bool last);
+LLVMValueRef generatePostfix(Generator* generator, PostfixExpression* context);
+LLVMValueRef generateUnary(Generator* generator, UnaryExpression* context);
+LLVMValueRef generateMultiplicative(Generator* generator, BinaryExpression* context);
+LLVMValueRef generateAdditive(Generator* generator, BinaryExpression* context);
+LLVMValueRef generateShift(Generator* generator, BinaryExpression* context);
+LLVMValueRef generateRelational(Generator* generator, BinaryExpression* context);
+LLVMValueRef generateEquality(Generator* generator, BinaryExpression* context);
+LLVMValueRef generateAnd(Generator* generator, BinaryExpression* context);
+LLVMValueRef generateExclusiveOr(Generator* generator, BinaryExpression* context);
+LLVMValueRef generateInclusiveOr(Generator* generator, BinaryExpression* context);
+LLVMValueRef generateLogicalAnd(Generator* generator, BinaryExpression* context);
+LLVMValueRef generateLogicalOr(Generator* generator, BinaryExpression* context);
+LLVMValueRef generateConditional(Generator* generator, ConditionalExpression* context);
+LLVMValueRef generateAssignment(Generator* generator, BinaryExpression* context);
+LLVMValueRef generateExpression(Generator* generator, Context* context);
+void generateVariableDeclaration(Generator* generator, VariableDeclaration* context);
+void generateReturn(Generator* generator, ReturnStatement* context);
+void generateIfClause(Generator* generator, IfClause* clause,
+    LLVMBasicBlockRef llvmConditionBlock, LLVMBasicBlockRef llvmThenBlock,
+    LLVMBasicBlockRef llvmElseBlock, LLVMBasicBlockRef llvmExitBlock);
+void generateIf(Generator* generator, IfStatement* context);
+void generateIterative(Generator* generator, IterativeStatement* statement);
+void generateBlock(Generator* generator, Block* block);
+void generateFunction(Generator* generator, Function* function);
+LLVMTypeRef getLLVMVariableType(Type* type);
+LLVMValueRef getReferenceToAllocate(Generator* generator);
+void generateFunctions(Generator* generator, Module* module);
+void generateStructure(Generator* generator, Structure* structure);
+void generateStructures(Generator* generator, Module* module);
+bool generateLLVM(Generator* generator, Module* module, const char* name);
 
 #define invalidate(generator) generator->scope = generator->scope->parent
 
-/******************************************************************************
- * Generator                                                                  *
- ******************************************************************************/
-
-static void generateType(Generator* generator, Type* type);
-static void generateForwardReferences(Generator* generator, Module* module);
-static void generateStructures(Generator* generator, Module* module);
-static void generateBinary(Generator* generator, BinaryExpression* expression);
-static void generateConditional(Generator* generator, ConditionalExpression* expression);
-static void generateUnary(Generator* generator, UnaryExpression* expression);
-static void generateSubscript(Generator* generator, Subscript* subscript);
-static void generateFunctionArguments(Generator* generator, FunctionArguments* arguments);
-static void generateMemberAccess(Generator* generator, MemberAccess* access);
-static void generatePostfix(Generator* generator, PostfixExpression* expression);
-static void generateToken(Generator* generator, Token* token);
-static void generateNewExpression(Generator* generator, NewExpression* expression);
-static void generateArray(Generator* generator, ArrayExpression* expression);
-static void generateExpression(Generator* generator, Context* context);
-static void generateIndentation(Generator* generator, int32_t depth);
-static void generateBlock(Generator* generator, Block* block, int32_t depth);
-static void generateFunction(Generator* generator, Function* function);
-static void generateFunctions(Generator* generator, Module* module);
-static void generateConstructors(Generator* generator, Module* module);
-static void generateHeader(Generator* generator, Module* module);
-
-void generateType(Generator* generator, Type* type) {
-    const char* output = NULL;
-    if (type == &primitives.boolean) {
-        output = "bool";
-    }
-    else if (type == &primitives.i8) {
-        output = "int8_t";
-    }
-    else if (type == &primitives.i16) {
-        output = "int16_t";
-    }
-    else if (type == &primitives.i32) {
-        output = "int32_t";
-    }
-    else if (type == &primitives.i64) {
-        output = "int64_t";
-    }
-    else if (type == &primitives.ui8) {
-        output = "uint8_t";
-    }
-    else if (type == &primitives.ui16) {
-        output = "uint16_t";
-    }
-    else if (type == &primitives.ui32) {
-        output = "uint32_t";
-    }
-    else if (type == &primitives.ui64) {
-        output = "uint64_t";
-    }
-    else if (type == &primitives.f32) {
-        output = "float";
-    }
-    else if (type == &primitives.f64) {
-        output = "double";
-    }
-    else if (type == &primitives.void_) {
-        output = "void";
-    }
-    else if (type == &primitives.string) {
-        output = "k_String_t*";
-    }
-    if (output != NULL) {
-        fprintf(generator->output, "%s", output);
-    }
-    else {
-        if (type->tag == TYPE_ARRAY) {
-            if (type->array.base == &primitives.i32) {
-                fprintf(generator->output, "k_IntegerArray_t*");
-            }
-            else {
-                fprintf(generator->output, "k_Array_t*");
-            }
-        }
-        else if (type->tag == TYPE_STRUCTURE) {
-            fprintf(generator->output, "kush_%s*", type->structure->name);
-        }
-    }
+LLVMValueRef generateArray(Generator* generator, ArrayExpression* context) {
+    LLVMValueRef result;
+    return result;
 }
 
-void generateForwardReferences(Generator* generator, Module* module) {
-    int32_t structureCount = jtk_ArrayList_getSize(module->structures);
-    int32_t j;
-    for (j = 0; j < structureCount; j++) {
-        Structure* structure = (Structure*)jtk_ArrayList_getValue(
-            module->structures, j);
-        fprintf(generator->output, "typedef struct kush_%s kush_%s;\n", structure->name, structure->name);
-    }
-    fprintf(generator->output, "\n");
-
-    int32_t functionCount = jtk_ArrayList_getSize(module->functions);
-    int32_t i;
-    for (i = 0; i < functionCount; i++) {
-        Function* function = (Function*)jtk_ArrayList_getValue(
-            module->functions, i);
-        generateType(generator, function->returnType);
-        fprintf(generator->output, " kush_%s(k_Runtime_t* runtime", function->name);
-        int32_t parameterCount = jtk_ArrayList_getSize(function->parameters);
-        int32_t i;
-        for (i = 0; i < parameterCount; i++) {
-            Variable* parameter = (Variable*)jtk_ArrayList_getValue(function->parameters, i);
-            fprintf(generator->output, ", ");
-            generateType(generator, parameter->type);
-            fprintf(generator->output, " %s", parameter->name);
-        }
-        fprintf(generator->output, ");\n");
-    }
-    fprintf(generator->output, "\n");
-}
-
-void generateStructures(Generator* generator, Module* module) {
-    int32_t structureCount = jtk_ArrayList_getSize(module->structures);
-    int32_t j;
-    for (j = 0; j < structureCount; j++) {
-        Structure* structure = (Structure*)jtk_ArrayList_getValue(
-            module->structures, j);
-        fprintf(generator->output, "struct kush_%s {\n", structure->name);
-        fprintf(generator->output, "    k_ObjectHeader_t header;\n");
-
-        int32_t declarationCount = jtk_ArrayList_getSize(structure->declarations);
-        int32_t i;
-        for (i = 0; i < declarationCount; i++) {
-            VariableDeclaration* declaration =
-                (VariableDeclaration*)jtk_ArrayList_getValue(structure->declarations, i);
-
-            int32_t limit = jtk_ArrayList_getSize(declaration->variables);
-            int32_t j;
-            for (j = 0; j < limit; j++) {
-                Variable* variable = (Variable*)jtk_ArrayList_getValue(declaration->variables, j);
-                fprintf(generator->output, "    ");
-                generateType(generator, variable->type);
-                fprintf(generator->output, " %s;\n", variable->name);
-            }
-        }
-
-        fprintf(generator->output, "};\n");
-    }
-    fprintf(generator->output, "\n");
-
-    for (j = 0; j < structureCount; j++) {
-        Structure* structure = (Structure*)jtk_ArrayList_getValue(
-            module->structures, j);
-        fprintf(generator->output, "kush_%s* $%s_new(k_Runtime_t* runtime", structure->name, structure->name);
-
-        int32_t declarationCount = jtk_ArrayList_getSize(structure->declarations);
-        int32_t i;
-        for (i = 0; i < declarationCount; i++) {
-            VariableDeclaration* declaration =
-                (VariableDeclaration*)jtk_ArrayList_getValue(structure->declarations, i);
-
-            int32_t limit = jtk_ArrayList_getSize(declaration->variables);
-            int32_t j;
-            for (j = 0; j < limit; j++) {
-                Variable* variable = (Variable*)jtk_ArrayList_getValue(declaration->variables, j);
-                fprintf(generator->output, ", ");
-                generateType(generator, variable->type);
-                fprintf(generator->output, " %s", variable->name);
-            }
-        }
-
-        fprintf(generator->output, ");\n");
-    }
-    fprintf(generator->output, "\n");
-}
-
-/* Return the type of the first expression, even if there are errors in the
- * right hand side.
- */
-void generateAssignment(Generator* generator, BinaryExpression* expression) {
-    int32_t count = jtk_ArrayList_getSize(expression->others);
-    generateExpression(generator, (Context*)expression->left);
-
-    if (count > 0) {
-        int32_t i;
-        for (i = 0; i < count; i++) {
-            jtk_Pair_t* pair = (jtk_Pair_t*)jtk_ArrayList_getValue(expression->others, i);
-            fprintf(generator->output, " %s ", ((Token*)pair->m_left)->text);
-            generateExpression(generator, (Context*)pair->m_right);
-        }
-    }
-}
-
-/* Return the type of the first expression, even if there are errors in the
- * right hand side.
- */
-void generateBinary(Generator* generator, BinaryExpression* expression) {
-    generateExpression(generator, (Context*)expression->left);
-
-    int32_t count = jtk_ArrayList_getSize(expression->others);
-    if (count > 0) {
-        int32_t i;
-        for (i = 0; i < count; i++) {
-            jtk_Pair_t* pair = (jtk_Pair_t*)jtk_ArrayList_getValue(expression->others, i);
-            fprintf(generator->output, " %s ", ((Token*)pair->m_left)->text);
-            generateExpression(generator, (Context*)pair->m_right);
-        }
-    }
-}
-
-void generateConditional(Generator* generator, ConditionalExpression* expression) {
-    generateExpression(generator, (Context*)expression->condition);
-
-    if (expression->hook != NULL) {
-        fprintf(generator->output, "? ");
-        generateExpression(generator, (Context*)expression->then);
-        fprintf(generator->output, " : ");
-        generateExpression(generator, (Context*)expression->otherwise);
-    }
-}
-
-void generateUnary(Generator* generator, UnaryExpression* expression) {
-    Token* operator = expression->operator;
-    if (operator != NULL) {
-        fprintf(generator->output, "%s", operator->text);
-        generateExpression(generator, (Context*)expression->expression);
-    }
-    else {
-        generateExpression(generator, (Context*)expression->expression);
-    }
-}
-
-void generateSubscript(Generator* generator, Subscript* subscript) {
-    fprintf(generator->output, "->value[");
-    generateExpression(generator, (Context*)subscript->expression);
-    fprintf(generator->output, "]");
-}
-
-void generateFunctionArguments(Generator* generator, FunctionArguments* arguments) {
-    fprintf(generator->output, "(runtime");
-    int32_t count = jtk_ArrayList_getSize(arguments->expressions);
-    int32_t j;
-    for (j = 0; j < count; j++) {
-        Context* context = (Context*)jtk_ArrayList_getValue(arguments->expressions, j);
-        fprintf(generator->output, ", ");
-        generateExpression(generator, context);
-    }
-    fprintf(generator->output, ")");
-}
-
-void generateMemberAccess(Generator* generator, MemberAccess* access) {
-    fprintf(generator->output, "->%s", access->identifier->text);
-}
-
-void generatePostfix(Generator* generator, PostfixExpression* expression) {
-    if (expression->token) {
-        generateToken(generator, (Token*)expression->primary);
-    }
-    else {
-        fprintf(generator->output, "(");
-        generateExpression(generator, (Context*)expression->primary);
-        fprintf(generator->output, ")");
-    }
-
-    int32_t count = jtk_ArrayList_getSize(expression->postfixParts);
-    int32_t i;
-    for (i = 0; i < count; i++) {
-        Context* postfix = (Context*)jtk_ArrayList_getValue(
-            expression->postfixParts, i);
-
-        if (postfix->tag == CONTEXT_SUBSCRIPT) {
-            generateSubscript(generator, (Subscript*)postfix);
-        }
-        else if (postfix->tag == CONTEXT_FUNCTION_ARGUMENTS) {
-            generateFunctionArguments(generator, (FunctionArguments*)postfix);
-        }
-        else if (postfix->tag == CONTEXT_MEMBER_ACCESS) {
-            generateMemberAccess(generator, (MemberAccess*)postfix);
-        }
-        else {
-            controlError();
-            break;
-        }
-    }
-}
-
-void generateToken(Generator* generator, Token* token) {
-    switch (token->type) {
-        case TOKEN_KEYWORD_TRUE:
-        case TOKEN_KEYWORD_FALSE: {
-            fprintf(generator->output, "%s", token->text);
-            break;
-        }
-
-        case TOKEN_IDENTIFIER: {
-            bool done = false;
-            Symbol* symbol = resolveSymbol(generator->scope, token->text);
-            if (symbol->tag == CONTEXT_VARIABLE) {
-                Variable* variable = (Variable*)symbol;
-                if (variable->type->reference) {
-                    fprintf(generator->output, "((");
-                    generateType(generator, variable->type);
-                    fprintf(generator->output, "*)$stackFrame->pointers)[%d]", variable->index);
-                    done = true;
-                }
-            }
-
-            if (!done) {
-                fprintf(generator->output, "kush_%s", token->text);
-            }
-
-            break;
-        }
-
-        case TOKEN_INTEGER_LITERAL: {
-            // TODO
-            fprintf(generator->output, "%s", token->text);
-            break;
-        }
-
-        case TOKEN_FLOATING_POINT_LITERAL: {
-            fprintf(generator->output, "%s", token->text);
-            break;
-        }
-
-        case TOKEN_STRING_LITERAL: {
-            fprintf(generator->output, "makeString(runtime, \"%.*s\")", token->length - 2, token->text + 1);
-            break;
-        }
-
-        case TOKEN_KEYWORD_NULL: {
-            fprintf(generator->output, "NULL");
-            break;
-        }
-
-        default: {
-            fprintf(generator->output, "[internal error] Control should not reach here.\n");
-        }
-    }
-}
-
-void generateArraySuffix(Generator* generator, Type* base) {
-    const char* output = NULL;
-    if (base == &primitives.boolean) {
-        output = "boolean";
-    }
-    else if (base == &primitives.i8) {
-        output = "i8";
-    }
-    else if (base == &primitives.i16) {
-        output = "i16";
-    }
-    else if (base == &primitives.i32) {
-        output = "i32";
-    }
-    else if (base == &primitives.i64) {
-        output = "i64";
-    }
-    else if (base == &primitives.ui8) {
-        output = "ui8";
-    }
-    else if (base == &primitives.ui16) {
-        output = "ui16";
-    }
-    else if (base == &primitives.ui32) {
-        output = "ui32";
-    }
-    else if (base == &primitives.ui64) {
-        output = "ui64";
-    }
-    else if (base == &primitives.f32) {
-        output = "f32";
-    }
-    else if (base == &primitives.f64) {
-        output = "f64";
-    }
-    else {
-        output = "ref";
-    }
-    fprintf(generator->output, "%s", output);
-}
-
-// TODO: Remove declarations and keep only variables?
-void generateObjectExpression(Generator* generator, NewExpression* expression) {
+LLVMValueRef generateObject(Generator* generator, NewExpression* expression) {
     Type* type = expression->type;
     Structure* structure = type->structure;
 
-    int32_t count = 0;
-    int32_t declarationCount = jtk_ArrayList_getSize(structure->declarations);
-    int32_t i;
-    for (i = 0; i < declarationCount; i++) {
+    int32_t totalVariables = 0;
+    int32_t declarationCount = structure->declarations->m_size;
+    for (int32_t i = 0; i < declarationCount; i++) {
         VariableDeclaration* declaration =
-            (VariableDeclaration*)jtk_ArrayList_getValue(structure->declarations, i);
-        count += jtk_ArrayList_getSize(declaration->variables);
+            (VariableDeclaration*)structure->declarations->m_values[i];
+        totalVariables += declaration->variables->m_size;
     }
 
-    Context** arguments = (Context**)malloc(sizeof (Context*) * count);
-    for (i = 0; i < count; i++) {
-        arguments[i] = NULL;
+    LLVMValueRef llvmArguments[totalVariables];
+    for (int32_t i = 0; i < totalVariables; i++) {
+        llvmArguments[i] = NULL;
     }
 
-    int32_t limit = jtk_ArrayList_getSize(expression->entries);
-    for (i = 0; i < limit; i++) {
-        jtk_Pair_t* pair = (jtk_Pair_t*)jtk_ArrayList_getValue(expression->entries, i);
+    /* For each entry in the object intializer, we apply linear search on the declared variables
+     * to find the index of the field. A better solution would be to use a hash map.
+     */
+    int32_t entryCount = expression->entries->m_size;
+    for (int i = 0; i < entryCount; i++) {
+        jtk_Pair_t* pair = (jtk_Pair_t*)expression->entries->m_values[i];
         Token* identifier = (Token*)pair->m_left;
-        Context* expression = (Context*)pair->m_right;
-        int32_t index = -1;
-        int32_t j;
-        int32_t m = 0;
-        for (j = 0; j < declarationCount; j++) {
+
+        int32_t index = 0;
+        for (int32_t j = 0; j < declarationCount; j++) {
             VariableDeclaration* declaration =
-                (VariableDeclaration*)jtk_ArrayList_getValue(structure->declarations, j);
-            int32_t variableCount = jtk_ArrayList_getSize(declaration->variables);
-            int32_t k;
-            for (k = 0; k < variableCount; k++) {
-                Variable* variable = (Variable*)jtk_ArrayList_getValue(declaration->variables, k);
+                (VariableDeclaration*)structure->declarations->m_values[j];
+            int32_t variableCount = declaration->variables->m_size;
+            for (int32_t k = 0; k < variableCount; k++) {
+                Variable* variable = (Variable*)declaration->variables->m_values[k];
                 if (jtk_CString_equals(variable->name, variable->nameSize,
                     identifier->text, identifier->length)) {
-                    index = m;
-                    break;
+                    goto found;
                 }
-                m++;
+                index++;
             }
         }
 
-        if (index != -1) {
-            arguments[index] = expression;
+        found:
+            if (index != totalVariables) {
+                llvmArguments[index] = generateExpression(generator, (Context*)pair->m_right);
+            }
+    }
+
+    int32_t m = 0;
+    for (int32_t i = 0; i < declarationCount; i++) {
+        VariableDeclaration* declaration =
+            (VariableDeclaration*)structure->declarations->m_values[i];
+        int32_t variableCount = declaration->variables->m_size;
+        for (int32_t j = 0; j < variableCount; j++) {
+            if (llvmArguments[m] == NULL) {
+                Variable* variable = declaration->variables->m_values[j];
+                llvmArguments[m] = variable->type->llvmDefaultValue;
+            }
+            m++;
         }
     }
 
-    fprintf(generator->output, "$%s_new(runtime", structure->name);
-    for (i = 0; i < count; i++) {
-        fprintf(generator->output, ", ");
-        if (arguments[i] != NULL) {
-            generateExpression(generator, arguments[i]);
-        }
-        else {
-            fprintf(generator->output, "0");
-        }
-    }
-    fprintf(generator->output, ")");
+    return LLVMBuildCall(generator->llvmBuilder, structure->llvmConstructor, llvmArguments,
+        totalVariables, "");
 }
 
-void generateNewExpression(Generator* generator, NewExpression* expression) {
-    Type* type = expression->type;
+LLVMValueRef generateNew(Generator* generator, NewExpression* context) {
+    LLVMValueRef result;
+    Type* type = context->type;
     if (type->tag == TYPE_ARRAY) {
-        fprintf(generator->output, "makeArray_");
-        generateArraySuffix(generator, type->array.base);
-        fprintf(generator->output, "(runtime, %d", type->array.dimensions);
-        int32_t limit = jtk_ArrayList_getSize(expression->expressions);
-        int32_t i;
-        for (i = 0; i < limit; i++) {
-            fprintf(generator->output, ", ");
-            Context* context = (Context*)jtk_ArrayList_getValue(expression->expressions, i);
-            generateExpression(generator, context);
-        }
-        fprintf(generator->output, ")");
     }
     else {
-        generateObjectExpression(generator, expression);
+        result = generateObject(generator, context);
     }
+    return result;
 }
 
-void generateArray(Generator* generator, ArrayExpression* expression) {
-    int32_t limit = jtk_ArrayList_getSize(expression->expressions);
-    fprintf(generator->output, "arrayLiteral_");
-    generateArraySuffix(generator, expression->type->array.base);
-    fprintf(generator->output, "(runtime, %d", limit);
-
-    int32_t i;
-    for (i = 0; i < limit; i++) {
-        fprintf(generator->output, ", ");
-        Context* argument = (Context*)jtk_ArrayList_getValue(expression->expressions, i);
-        generateExpression(generator, argument);
-    }
-
-    fprintf(generator->output, ")");
-}
-
-void generateExpression(Generator* generator, Context* context) {
-    switch (context->tag) {
-        case CONTEXT_ASSIGNMENT_EXPRESSION: {
-            generateAssignment(generator, (BinaryExpression*)context);
-            break;
-        }
-
-        case CONTEXT_LOGICAL_OR_EXPRESSION:
-        case CONTEXT_LOGICAL_AND_EXPRESSION:
-        case CONTEXT_INCLUSIVE_OR_EXPRESSION:
-        case CONTEXT_EXCLUSIVE_OR_EXPRESSION:
-        case CONTEXT_AND_EXPRESSION:
-        case CONTEXT_EQUALITY_EXPRESSION:
-        case CONTEXT_RELATIONAL_EXPRESSION:
-        case CONTEXT_SHIFT_EXPRESSION:
-        case CONTEXT_ADDITIVE_EXPRESSION:
-        case CONTEXT_MULTIPLICATIVE_EXPRESSION: {
-            generateBinary(generator, (BinaryExpression*)context);
-            break;
-        }
-
-        case CONTEXT_CONDITIONAL_EXPRESSION: {
-            generateConditional(generator, (ConditionalExpression*)context);
-            break;
-        }
-
-        case CONTEXT_UNARY_EXPRESSION: {
-            generateUnary(generator, (UnaryExpression*)context);
-            break;
-        }
-
-        case CONTEXT_POSTFIX_EXPRESSION: {
-            generatePostfix(generator, (PostfixExpression*)context);
-            break;
-        }
-
-        case CONTEXT_NEW_EXPRESSION: {
-            generateNewExpression(generator, (NewExpression*)context);
-           break;
-        }
-
-        case CONTEXT_ARRAY_EXPRESSION: {
-            generateArray(generator, (ArrayExpression*)context);
-           break;
-        }
-
-        default: {
-            controlError();
-            break;
-        }
-    }
-}
-
-void generateIndentation(Generator* generator, int32_t depth) {
-    int32_t i;
-    for (i = 0; i < depth; i++) {
-        fprintf(generator->output, "    ");
-    }
-}
-
-void generateBlock(Generator* generator, Block* block, int32_t depth) {
-    fprintf(generator->output, "{\n");
-
-    generator->scope = block->scope;
-    int32_t limit = jtk_ArrayList_getSize(block->statements);
-    if (limit > 0) {
-        depth++;
-        generateIndentation(generator, depth);
-
-        int32_t i;
-        for (i = 0; i < limit; i++) {
-            Context* context = (Context*)jtk_ArrayList_getValue(
-                block->statements, i);
-            switch (context->tag) {
-                case CONTEXT_ITERATIVE_STATEMENT: {
-                    IterativeStatement* statement = (IterativeStatement*)context;
-
-                    if (statement->name != NULL) {
-                        fprintf(generator->output, "%s: ", statement->name);
-                    }
-
-                    if (statement->keyword->type == TOKEN_KEYWORD_WHILE) {
-                        fprintf(generator->output, "while (");
-                        generateExpression(generator, (Context*)statement->expression);
-                        fprintf(generator->output, ") ");
-                    }
-
-                    generateBlock(generator, statement->body, depth);
-
-                    if (statement->name != NULL) {
-                        generateIndentation(generator, depth);
-                        fprintf(generator->output, "__%sExit:\n", statement->name);
-                    }
-
-                    break;
-                }
-
-                case CONTEXT_IF_STATEMENT: {
-                    IfStatement* statement = (IfStatement*)context;
-                    fprintf(generator->output, "if (");
-                    generateExpression(generator, (Context*)statement->ifClause->expression);
-                    fprintf(generator->output, ") ");
-                    generateBlock(generator, statement->ifClause->body, depth);
-
-                    int32_t count = jtk_ArrayList_getSize(statement->elseIfClauses);
-                    int32_t j;
-                    for (j = 0; j < count; j++) {
-                        generateIndentation(generator, depth);
-                        IfClause* clause = (IfClause*)jtk_ArrayList_getValue(
-                            statement->elseIfClauses, j);
-                        fprintf(generator->output, "else if (");
-                        generateExpression(generator, (Context*)clause->expression);
-                        fprintf(generator->output, ") ");
-                        generateBlock(generator, clause->body, depth);
-                    }
-
-                    if (statement->elseClause != NULL) {
-                        generateIndentation(generator, depth);
-                        fprintf(generator->output, "else ");
-                        generateBlock(generator, statement->elseClause, depth);
-                    }
-
-                    break;
-                }
-
-                /*
-                case CONTEXT_TRY_STATEMENT: {
-                    TryStatement* statement = (TryStatement*)context;
-                    defineLocals(generator, statement->tryClause);
-
-                    int32_t count = jtk_ArrayList_getSize(statement->catchClauses);
-                    int32_t j;
-                    for (j = 0; j < count; j++) {
-                        CatchClause* clause = (CatchClause*)jtk_ArrayList_getValue(
-                            statement->catchClauses, j);
-                        Variable* parameter = clause->parameter;
-                        Scope* localScope = defineLocals(generator, clause->body);
-
-                        if (isUndefined(localScope, parameter->identifier->text)) {
-                            defineSymbol(localScope, (Symbol*)parameter);
-                        }
-                        else {
-                            handleSemanticError(handler, generator, ERROR_REDECLARATION_AS_CATCH_PARAMETER,
-                                parameter->identifier);
-                        }
-                    }
-
-                    if (statement->finallyClause != NULL) {
-                        defineLocals(generator, statement->finallyClause);
-                    }
-
+int32_t getRadix(const uint8_t** text, int32_t* length) {
+    int32_t radix = 10;
+    if (length > 2) {
+        uint8_t c = (*text)[1];
+        switch (c) {
+            case 'b':
+            case 'B': {
+                radix = 2;
                 break;
-                }*/
+            }
 
-                case CONTEXT_VARIABLE_DECLARATION: {
-                    VariableDeclaration* statement = (VariableDeclaration*)context;
-                    int32_t count = jtk_ArrayList_getSize(statement->variables);
-                    int32_t j;
-                    for (j = 0; j < count; j++) {
-                        Variable* variable = (Variable*)jtk_ArrayList_getValue(
-                            statement->variables, j);
+            case 'c':
+            case 'C': {
+                radix = 8;
+                break;
+            }
 
-                        // TODO: Capture parameters in pointers!
-                        if (variable->type->reference) {
-                            if (variable->expression != NULL) {
-                                fprintf(generator->output, "$stackFrame->pointers[%d] = (void*)",
-                                    variable->index);
-                                generateExpression(generator, (Context*)variable->expression);
-                            }
-                        }
-                        else {
-                            generateType(generator, variable->type);
-                            fprintf(generator->output, " kush_%s", variable->name);
-                            if (variable->expression != NULL) {
-                                fprintf(generator->output, " = ");
-                                generateExpression(generator, (Context*)variable->expression);
-                            }
-                        }
-                        fprintf(generator->output, ";\n");
-                    }
-                    break;
+            case 'x':
+            case 'X': {
+                radix = 16;
+                break;
+            }
+
+            default: {
+                if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
+                    fprintf(stderr, "[error] getRadix(): invalid integer literal %s\n", *text);
                 }
+                break;
+            }
+        }
+    }
 
-                case CONTEXT_ASSIGNMENT_EXPRESSION: {
-                    generateExpression(generator, context);
-                    fprintf(generator->output, ";\n");
-                    break;
-                }
+    if (radix != 10) {
+        *text += 2;
+        *length -= 2;
+    }
 
-                case CONTEXT_BREAK_STATEMENT: {
-                    BreakStatement* statement = (BreakStatement*)context;
-                    if (statement->identifier != NULL) {
-                        fprintf(generator->output, "goto __%sExit;\n", statement->identifier->text);
+    return radix;
+}
+
+LLVMValueRef generatePrimary(Generator* generator, void* context, bool token, Symbol** symbol, int count) {
+    LLVMValueRef result;
+    if (token) {
+        Token* token0 = (Token*)context;
+        switch (token0->type) {
+            case TOKEN_INTEGER_LITERAL: {
+                const uint8_t* text = token0->text;
+                int32_t length = token0->length; 
+                int32_t radix = getRadix(&text, &length);
+                result = LLVMConstIntOfStringAndSize(
+                    LLVMInt32TypeInContext(generator->llvmContext), text, length, radix);
+                break;
+            }
+
+            case TOKEN_FLOATING_POINT_LITERAL: {
+                result = LLVMConstRealOfStringAndSize(
+                    LLVMDoubleTypeInContext(generator->llvmContext), token0->text,
+                        token0->length);
+                break;
+            }
+
+            case TOKEN_KEYWORD_TRUE: {
+                result = LLVMConstIntOfStringAndSize(
+                    LLVMInt8TypeInContext(generator->llvmContext), "1", 1, 10);
+                break;
+            }
+
+            case TOKEN_KEYWORD_FALSE: {
+                result = LLVMConstIntOfStringAndSize(
+                    LLVMInt8TypeInContext(generator->llvmContext), "0", 1, 10);
+                break;
+            }
+
+            case TOKEN_KEYWORD_NULL: {
+                result = LLVMConstNull(
+                    LLVMPointerType(LLVMVoidTypeInContext(generator->llvmContext), 0)
+                );
+                break;
+            }
+
+            case TOKEN_IDENTIFIER: {
+                Symbol* resolved = resolveSymbol(generator->scope, token0->text);
+                *symbol = resolved;
+                if (resolved->tag == CONTEXT_VARIABLE) {
+                    Variable* variable = (Variable*)resolved;
+                    if (generator->validLeftValue) {
+                        result = variable->llvmValue;
+
+                        if (count > 0) {
+                            result = LLVMBuildLoad(generator->llvmBuilder, result, "");
+                        }
                     }
                     else {
-                        fprintf(generator->output, "break;\n");
+                        if (variable->parameter) {
+                            result = variable->llvmValue;
+                        }
+                        else {
+                            result = LLVMBuildLoad(generator->llvmBuilder, variable->llvmValue, "");
+                        }
                     }
+                }
+                break;
+            }
+
+            default: {
+                controlError();
+                break;
+            }
+        }
+    }
+    else {
+        Context* context0 = (Context*)context;
+        switch (context0->tag) {
+            /* primary expression => (expression) */
+            case CONTEXT_ASSIGNMENT_EXPRESSION: {
+                result = generateExpression(generator, (BinaryExpression*)context0);
+                break;
+            }
+
+            case CONTEXT_NEW_EXPRESSION: {
+                result = generateNew(generator, (NewExpression*)context0);
+                break;
+            }
+
+            case CONTEXT_ARRAY_EXPRESSION: {
+                result = generateArray(generator, (ArrayExpression*)context0);
+                break;
+            }
+        }
+    }
+
+    return result;
+}
+
+LLVMValueRef generateSubscript(Generator* generator, Subscript* context) {
+    LLVMValueRef result;
+    return result;
+}
+
+LLVMValueRef generateFunctionArguments(Generator* generator, Function* function,
+    FunctionArguments* context) {
+    int32_t count = context->expressions->m_size;
+    LLVMValueRef* llvmArguments = allocate(LLVMValueRef, count);
+    for (int i = 0; i < count; i++) {
+        Context* argument = (Context*)jtk_ArrayList_getValue(context->expressions, i);
+        llvmArguments[i] = generateExpression(generator, argument);
+    }
+    LLVMValueRef result = LLVMBuildCall(generator->llvmBuilder, function->llvmValue, llvmArguments, count, "");
+    deallocate(llvmArguments);
+    return result;
+}
+
+LLVMValueRef generateMemberAccess(Generator* generator, MemberAccess* context,
+    LLVMValueRef object, bool last) {
+    Variable* variable = (Variable*)resolveSymbol(context->previous->structure->scope,
+        context->identifier->text);
+    LLVMValueRef result = LLVMBuildStructGEP2(generator->llvmBuilder,
+        context->previous->structure->type->llvmType, object, variable->index, "");
+
+    if ((last && !generator->validLeftValue) ||
+        (context->previous->tag == TYPE_STRUCTURE && !last)) {
+        result = LLVMBuildLoad(generator->llvmBuilder, result, "");
+    }
+
+    return result;
+}
+
+LLVMValueRef generatePostfix(Generator* generator, PostfixExpression* context) {
+    Symbol* symbol = NULL;
+    int32_t count = context->postfixParts->m_size;
+    LLVMValueRef result = generatePrimary(generator, context->primary, context->token, &symbol, count);
+
+    for (int32_t i = 0; i < count; i++) {
+        Context* postfixPart = context->postfixParts->m_values[i];
+        switch (postfixPart->tag) {
+            case CONTEXT_SUBSCRIPT: {
+                generateSubscript(generator, (Subscript*)postfixPart);
+                break;
+            }
+
+            case CONTEXT_FUNCTION_ARGUMENTS: {
+                result = generateFunctionArguments(generator, (Function*)symbol, (FunctionArguments*)postfixPart);
+                break;
+            }
+
+            case CONTEXT_MEMBER_ACCESS: {
+                result = generateMemberAccess(generator, (MemberAccess*)postfixPart, result, i + 1 == count);
+                break;
+            }
+
+            default: {
+                fprintf(stderr, "[erorr] generatePostfix(): invalid postfixPart->tag");
+                break;
+            }
+        }
+    }
+
+    return result;
+}
+
+LLVMValueRef generateUnary(Generator* generator, UnaryExpression* context) {
+    LLVMValueRef lhs;
+    if (context->operator != NULL) {
+        lhs = generateUnary(generator, (UnaryExpression*)context->expression);
+        switch (context->operator->type) {
+            /* The `+` unary operator does nothing. */
+            case TOKEN_PLUS: {
+                break;
+            }
+
+            case TOKEN_DASH: {
+                LLVMValueRef rhs = LLVMConstIntOfStringAndSize(
+                    LLVMInt32TypeInContext(generator->llvmContext), "-1", 2, 10);
+                LLVMBuildMul(generator->llvmBuilder, lhs, rhs, "");
+                break;
+            }
+
+            /* Both `~` and `!` operators generate the same instruction. The semantic analyzer
+             * is responsible for ensuring `!` always works with boolean values. Otherwise
+             * the result will be "undefined".
+             * 
+             * TODO: Does not work for some reason.
+             */
+            case TOKEN_TILDE:
+            case TOKEN_EXCLAMATION_MARK: {
+                LLVMBuildNot(generator->llvmBuilder, lhs, "");
+                break;
+            }
+
+            default: {
+                fprintf(stderr, "[error] generateUnary(): invalid token type\n");
+            }
+        }
+    }
+    else {
+        lhs = generatePostfix(generator, (PostfixExpression*)context->expression);
+    }
+
+    return lhs;
+}
+
+LLVMValueRef generateMultiplicative(Generator* generator, BinaryExpression* context) {
+    LLVMValueRef lhs = generateUnary(generator, (BinaryExpression*)context->left);
+
+    for (int32_t i = 0; i < context->others->m_size; i++) {
+        jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
+        LLVMValueRef rhs = generateUnary(generator, (BinaryExpression*)pair->m_right);
+
+        Token* token = (Token*)pair->m_left;
+        switch (token->type) {
+            case TOKEN_ASTERISK: {
+                lhs = LLVMBuildMul(generator->llvmBuilder, lhs, rhs, "");
+                break;
+            }
+
+            case TOKEN_FORWARD_SLASH: {
+                lhs = LLVMBuildSDiv(generator->llvmBuilder, lhs, rhs, "");
+                break;
+            }
+
+            case TOKEN_MODULUS: {
+                lhs = LLVMBuildSRem(generator->llvmBuilder, lhs, rhs, "");
+                break;
+            }
+
+            default: {
+                fprintf(stderr, "[error] generateMultiplicative(): invalid token type\n");
+            }
+        }
+    }
+
+    return lhs;
+}
+
+LLVMValueRef generateAdditive(Generator* generator, BinaryExpression* context) {
+    LLVMValueRef lhs = generateMultiplicative(generator, context->left);
+
+    for (int32_t i = 0; i < context->others->m_size; i++) {
+        jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
+        LLVMValueRef rhs = generateMultiplicative(generator, (BinaryExpression*)pair->m_right);
+
+        Token* token = (Token*)pair->m_left;
+        switch (token->type) {
+            case TOKEN_PLUS: {
+                lhs = LLVMBuildAdd(generator->llvmBuilder, lhs, rhs, "");
+                break;
+            }
+
+            case TOKEN_DASH: {
+                lhs = LLVMBuildSub(generator->llvmBuilder, lhs, rhs, "");
+                break;
+            }
+
+            default: {
+                fprintf(stderr, "[error] generateAdditive(): invalid token type\n");
+                break;
+            }
+        }
+    }
+
+    return lhs;
+}
+
+LLVMValueRef generateShift(Generator* generator, BinaryExpression* context) {
+    LLVMValueRef lhs = generateAdditive(generator, (BinaryExpression*)context->left);
+
+    for (int32_t i = 0; i < context->others->m_size; i++) {
+        jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
+        LLVMValueRef rhs = generateAdditive(generator, (BinaryExpression*)pair->m_right);
+
+        Token* token = (Token*)pair->m_left;
+        switch (token->type) {
+            case TOKEN_LEFT_ANGLE_BRACKET_2: {
+                lhs = LLVMBuildShl(generator->llvmBuilder, lhs, rhs, "");
+                break;
+            }
+
+            // NOTE: >> is arithmetic shift right and >>> is logical shift right
+            case TOKEN_RIGHT_ANGLE_BRACKET_2: {
+                lhs = LLVMBuildAShr(generator->llvmBuilder, lhs, rhs, "");
+                break;
+            }
+
+            default: {
+                fprintf(stderr, "[error] generateShift: invalid token type\n");
+                break;
+            }
+        }
+    }
+
+    return lhs;
+}
+
+LLVMValueRef generateRelational(Generator* generator, BinaryExpression* context) {
+    LLVMValueRef lhs = generateShift(generator, (BinaryExpression*)context->left);
+
+    for (int32_t i = 0; i < context->others->m_size; i++) {
+        jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
+        LLVMValueRef rhs = generateShift(generator, (BinaryExpression*)pair->m_right);
+
+        TokenType tokenType = ((Token*)pair->m_left)->type;
+
+        if (/*expression->type->tag == TYPE_DECIMAL*/false) {
+            LLVMRealPredicate predicate;
+            switch (tokenType) {
+                case TOKEN_LEFT_ANGLE_BRACKET: {
+                    predicate = LLVMRealOLT;
                     break;
                 }
 
-
-                case CONTEXT_RETURN_STATEMENT: {
-                    ReturnStatement* statement = (ReturnStatement*)context;
-                    fprintf(generator->output, "kush_return(");
-                    generateExpression(generator, (Context*)statement->expression);
-                    fprintf(generator->output, ");\n");
-
+                case TOKEN_RIGHT_ANGLE_BRACKET: {
+                    predicate = LLVMRealOGT;
                     break;
                 }
 
-                /*
-                case CONTEXT_THROW_STATEMENT: {
-                    generateThrowStatement(generator, (ThrowStatement*)context);
+                case TOKEN_LEFT_ANGLE_BRACKET_EQUAL: {
+                    predicate = LLVMRealOLE;
                     break;
                 }
-                */
+
+                case TOKEN_RIGHT_ANGLE_BRACKET_EQUAL: {
+                    predicate = LLVMRealOGE;
+                    break;
+                }
 
                 default: {
                     controlError();
                     break;
                 }
             }
-            if (i + 1 < limit) {
-                generateIndentation(generator, depth);
-            }
+            lhs = LLVMBuildFCmp(generator->llvmBuilder, predicate, lhs, rhs, "");
         }
-        generateIndentation(generator, depth - 1);
-    }
-    else {
-        generateIndentation(generator, depth);
+        else {
+            LLVMIntPredicate predicate;
+            switch (tokenType) {
+                case TOKEN_LEFT_ANGLE_BRACKET: {
+                    predicate = LLVMIntSLT;
+                    break;
+                }
+
+                case TOKEN_RIGHT_ANGLE_BRACKET: {
+                    predicate = LLVMIntSGT;
+                    break;
+                }
+
+                case TOKEN_LEFT_ANGLE_BRACKET_EQUAL: {
+                    predicate = LLVMIntSLE;
+                    break;
+                }
+
+                case TOKEN_RIGHT_ANGLE_BRACKET_EQUAL: {
+                    predicate = LLVMIntSGE;
+                    break;
+                }
+
+                default: {
+                    controlError();
+                    break;
+                }
+            }
+            lhs = LLVMBuildICmp(generator->llvmBuilder, predicate, lhs, rhs, "");
+        }
     }
 
-    fprintf(generator->output, "}\n");
+    return lhs;
+}
+
+LLVMValueRef generateEquality(Generator* generator, BinaryExpression* context) {
+    LLVMValueRef lhs = generateRelational(generator, (BinaryExpression*)context->left);
+
+    for (int32_t i = 0; i < context->others->m_size; i++) {
+        jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
+        LLVMValueRef rhs = generateRelational(generator, (BinaryExpression*)pair->m_right);
+        TokenType tokenType = ((Token*)pair->m_left)->type;
+
+        if (/*context->type->tag == TYPE_DECIMAL*/ false) {
+            LLVMRealPredicate predicate;
+            switch (tokenType) {
+                case TOKEN_EQUAL_2: {
+                    predicate = LLVMRealOEQ;
+                    break;
+                }
+
+                case TOKEN_EXCLAMATION_MARK_EQUAL: {
+                    predicate = LLVMRealONE;
+                    break;
+                }
+
+                default: {
+                    controlError();
+                    break;
+                }
+            }
+            lhs = LLVMBuildFCmp(generator->llvmBuilder, predicate, lhs, rhs, "");
+        }
+        else {
+            LLVMIntPredicate predicate;
+            switch (tokenType) {
+                case TOKEN_EQUAL_2: {
+                    predicate = LLVMIntEQ;
+                    break;
+                }
+
+                case TOKEN_EXCLAMATION_MARK_EQUAL: {
+                    predicate = LLVMIntNE;
+                    break;
+                }
+
+                default: {
+                    controlError();
+                    break;
+                }
+            }
+            lhs = LLVMBuildICmp(generator->llvmBuilder, predicate, lhs, rhs, "");
+        }
+    }
+
+    return lhs;
+}
+
+LLVMValueRef generateAnd(Generator* generator, BinaryExpression* context) {
+    LLVMValueRef lhs = generateEquality(generator, (BinaryExpression*)context->left);
+
+    for (int32_t i = 0; i < context->others->m_size; i++) {
+        jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
+        LLVMValueRef rhs = generateEquality(generator, (BinaryExpression*)pair->m_right);
+
+        lhs = LLVMBuildAnd(generator->llvmBuilder, lhs, rhs, "");
+    }
+
+    return lhs;
+}
+
+LLVMValueRef generateExclusiveOr(Generator* generator, BinaryExpression* context) {
+    LLVMValueRef lhs = generateAnd(generator, (BinaryExpression*)context->left);
+
+    for (int32_t i = 0; i < context->others->m_size; i++) {
+        jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
+        LLVMValueRef rhs = generateAnd(generator, (BinaryExpression*)pair->m_right);
+        
+        lhs = LLVMBuildXor(generator->llvmBuilder, lhs, rhs, "");
+    }
+
+    return lhs;
+}
+
+LLVMValueRef generateInclusiveOr(Generator* generator, BinaryExpression* context) {
+    LLVMValueRef lhs = generateExclusiveOr(generator, (BinaryExpression*)context->left);
+
+    for (int32_t i = 0; i < context->others->m_size; i++) {
+        jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
+        LLVMValueRef rhs = generateExclusiveOr(generator, (BinaryExpression*)pair->m_right);
+
+        lhs = LLVMBuildOr(generator->llvmBuilder, lhs, rhs, "");
+    }
+
+    return lhs;
+}
+
+LLVMValueRef generateLogicalAnd(Generator* generator, BinaryExpression* context) {
+    LLVMValueRef result = generateInclusiveOr(generator, (BinaryExpression*)context->left);
+
+    for (int32_t i = 0; i < context->others->m_size; i++) {
+        jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
+        /* TODO: Update result */
+        generateInclusiveOr(generator, (BinaryExpression*)pair->m_right);
+    }
+
+    return result;
+}
+
+LLVMValueRef generateLogicalOr(Generator* generator, BinaryExpression* context) {
+    LLVMValueRef result = generateLogicalAnd(generator, (BinaryExpression*)context->left);
+
+    for (int32_t i = 0; i < context->others->m_size; i++) {
+        jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
+        /* TODO: Update result */
+        generateLogicalAnd(generator, (BinaryExpression*)pair->m_right);
+    }
+
+    return result;
+}
+
+LLVMValueRef generateConditional(Generator* generator, ConditionalExpression* context) {
+    LLVMValueRef result = generateLogicalOr(generator, (BinaryExpression*)context->condition);
+
+    if (context->hook != NULL) {
+        /* TODO: Update result */
+        generateExpression(generator, (Context*)context->then);
+        generateConditional(generator, (ConditionalExpression*)context->otherwise);
+    }
+
+    return result;
+}
+
+LLVMValueRef generateAssignment(Generator* generator, BinaryExpression* context) {
+    LLVMValueRef lhs;
+    bool previousVLV = generator->validLeftValue;
+
+    int count = context->others->m_size;
+    if (count > 0) {
+        generator->validLeftValue = false;
+        jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[count - 1];
+        LLVMValueRef rhs = generateConditional(generator, (Context*)pair->m_right);
+
+        generator->validLeftValue = true;
+        for (int i = count - 2; i >= 0; i--) {
+            jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
+            LLVMValueRef current = generateConditional(generator, (Context*)pair->m_right);
+            rhs = LLVMBuildStore(generator->llvmBuilder, rhs, current);
+        }
+
+        lhs = generateConditional(generator, context->left);
+        LLVMBuildStore(generator->llvmBuilder, rhs, lhs);
+    }
+    else {
+        generator->validLeftValue = false;
+        lhs = generateConditional(generator, context->left);
+    }
+    generator->validLeftValue = previousVLV;
+
+    return lhs;
+}
+
+LLVMValueRef generateExpression(Generator* generator, Context* context) {
+    return generateAssignment(generator, (BinaryExpression*)context);
+}
+
+void generateVariableDeclaration(Generator* generator, VariableDeclaration* context) {
+    int32_t count = context->variables->m_size;
+    for (int32_t j = 0; j < count; j++) {
+        Variable* variable = (Variable*)context->variables->m_values[j];
+        LLVMTypeRef llvmType = getLLVMVariableType(variable->type);
+        variable->llvmValue = LLVMBuildAlloca(generator->llvmBuilder, llvmType,
+            "");
+
+        LLVMValueRef rhs = (variable->expression != NULL)?
+            generateExpression(generator, (Context*)variable->expression) :
+            variable->type->llvmDefaultValue;
+        LLVMBuildStore(generator->llvmBuilder, rhs, variable->llvmValue);
+    }
+}
+
+void generateReturn(Generator* generator, ReturnStatement* context) {
+    if (context->expression != NULL) {
+        LLVMValueRef llvmValue = generateExpression(generator, (Context*)context->expression);
+        LLVMBuildRet(generator->llvmBuilder, llvmValue);
+    }
+    else {
+        LLVMBuildRetVoid(generator->llvmBuilder);
+    }
+}
+
+void generateIfClause(Generator* generator, IfClause* clause,
+    LLVMBasicBlockRef llvmConditionBlock, LLVMBasicBlockRef llvmThenBlock,
+    LLVMBasicBlockRef llvmElseBlock, LLVMBasicBlockRef llvmExitBlock) {
+    if (llvmConditionBlock != NULL) {
+        LLVMPositionBuilderAtEnd(generator->llvmBuilder, llvmConditionBlock);
+    }
+    LLVMValueRef llvmCondition = generateExpression(generator, (Context*)clause->expression);
+    LLVMBuildCondBr(generator->llvmBuilder, llvmCondition, llvmThenBlock, llvmElseBlock);
+
+    LLVMPositionBuilderAtEnd(generator->llvmBuilder, llvmThenBlock);
+    generateBlock(generator, clause->body);
+    LLVMBuildBr(generator->llvmBuilder, llvmExitBlock);
+}
+
+void generateIf(Generator* generator, IfStatement* context) {
+    LLVMValueRef llvmFunction = generator->function->llvmValue;
+
+    int elseIfClauseCount = context->elseIfClauses->m_size;
+    /* Break down:
+     *     - 1 block => if clause
+     *     - N * 2 blocks => else if clause blocks + condition blocks
+     *     - 0 or 1 block => else clause
+     *     - 1 block => outside if statement
+     */
+    int blockCount = 2 + elseIfClauseCount * 2 + (context->elseClause != NULL? 1 : 0);
+    LLVMBasicBlockRef* llvmBlocks = allocate(LLVMBasicBlockRef, blockCount);
+    for (int i = 0; i < blockCount; i++) {
+        llvmBlocks[i] = LLVMAppendBasicBlock(llvmFunction, "");
+    }
+
+    /* 0 => If clause block
+     * 1 => Else clause block / Else if clause block / Exit block
+     */
+    LLVMBasicBlockRef llvmExitBlock = llvmBlocks[blockCount - 1];
+    generateIfClause(generator, context->ifClause, NULL, llvmBlocks[0], llvmBlocks[1], llvmExitBlock);
+
+    for (int i = 0; i < elseIfClauseCount; i++) {
+        IfClause* clause = (IfClause*)jtk_ArrayList_getValue(context->elseIfClauses, i);
+        /* base + 0 => Current condition block
+         * base + 1 => Current clause block
+         * base + 2 => Next clause block or exit block
+         */
+        int baseIndex = (i * 2) + 1;
+        generateIfClause(generator, clause, llvmBlocks[baseIndex], llvmBlocks[baseIndex + 1],
+            llvmBlocks[baseIndex + 2], llvmExitBlock);
+    }
+
+    if (context->elseClause != NULL) {
+        /* blockCount - 2 => Else clause
+         * blockCount - 1 => Exit block
+         */
+        LLVMPositionBuilderAtEnd(generator->llvmBuilder, llvmBlocks[blockCount - 2]);
+        generateBlock(generator, context->elseClause);
+        LLVMBuildBr(generator->llvmBuilder, llvmExitBlock);
+    }
+
+    LLVMPositionBuilderAtEnd(generator->llvmBuilder, llvmExitBlock);
+}
+
+void generateIterative(Generator* generator, IterativeStatement* statement) {
+    LLVMValueRef llvmFunction = generator->function->llvmValue;
+    LLVMBasicBlockRef llvmConditionBlock = LLVMAppendBasicBlock(llvmFunction, "");
+    LLVMBasicBlockRef llvmThenBlock = LLVMAppendBasicBlock(llvmFunction, "");
+    LLVMBasicBlockRef llvmElseBlock = LLVMAppendBasicBlock(llvmFunction, "");
+
+    /* Make sure that the current basic block has a terminator. */
+    LLVMBuildBr(generator->llvmBuilder, llvmConditionBlock);
+
+    LLVMPositionBuilderAtEnd(generator->llvmBuilder, llvmConditionBlock);
+    LLVMValueRef llvmCondition = generateExpression(generator, (Context*)statement->expression);
+    LLVMBuildCondBr(generator->llvmBuilder, llvmCondition, llvmThenBlock, llvmElseBlock);
+
+    LLVMPositionBuilderAtEnd(generator->llvmBuilder, llvmThenBlock);
+    generateBlock(generator, statement->body);
+    LLVMBuildBr(generator->llvmBuilder, llvmConditionBlock);
+
+    LLVMPositionBuilderAtEnd(generator->llvmBuilder, llvmElseBlock);
+}
+
+void generateBlock(Generator* generator, Block* block) {
+    generator->scope = block->scope;
+    
+    int32_t statementCount = block->statements->m_size;
+    for (int i = 0; i < statementCount; i++) {
+        Context* context = (Context*)block->statements->m_values[i];
+        switch (context->tag) {
+            case CONTEXT_ASSIGNMENT_EXPRESSION: {
+                generateExpression(generator, (BinaryExpression*)context);
+                break;
+            }
+
+            case CONTEXT_VARIABLE_DECLARATION: {
+                generateVariableDeclaration(generator, (VariableDeclaration*)context);
+                break;
+            }
+
+            case CONTEXT_RETURN_STATEMENT: {
+                generateReturn(generator, (ReturnStatement*)context);
+                break;
+            }
+
+            case CONTEXT_IF_STATEMENT: {
+                generateIf(generator, (IfStatement*)context);
+                break;
+            }
+            
+            case CONTEXT_ITERATIVE_STATEMENT: {
+                generateIterative(generator, (IterativeStatement*)context);
+                break;
+            }
+
+            default: {
+                controlError();
+                break;
+            }
+        }
+    }
+
     invalidate(generator);
 }
 
 void generateFunction(Generator* generator, Function* function) {
     generator->scope = function->scope;
+    generator->function = function;
 
-    generator->index = 0;
-    generateType(generator, function->returnType);
-    fprintf(generator->output, " kush_%s(k_Runtime_t* runtime", function->name);
+    int32_t parameterCount = function->parameters->m_size;
+    LLVMTypeRef* llvmParameterTypes = allocate(LLVMTypeRef, parameterCount);
 
-    int32_t parameterCount = jtk_ArrayList_getSize(function->parameters);
-    int32_t i;
-    for (i = 0; i < parameterCount; i++) {
-        fprintf(generator->output, ", ");
-        Variable* parameter = (Variable*)jtk_ArrayList_getValue(function->parameters, i);
-        generateType(generator, parameter->type);
-        fprintf(generator->output, " kush_%s", parameter->name);
+    for (int32_t i = 0; i < parameterCount; i++) {
+        Variable* parameter = (Variable*)function->parameters->m_values[i];
+        llvmParameterTypes[i] = getLLVMVariableType(parameter->type);
     }
 
     // TODO: Variable parameter
 
-    fprintf(generator->output, ") {\n");
-
-    fprintf(generator->output, "    k_StackFrame_t* $stackFrame = k_Runtime_pushStackFrame(runtime, \"%s\", %d, %d);\n    ",
-        function->name, function->nameSize, function->totalReferences);
-
-    for (i = 0; i < parameterCount; i++) {
-        Variable* parameter = (Variable*)jtk_ArrayList_getValue(function->parameters, i);
-
-        if (parameter->type->reference) {
-            fprintf(generator->output, "    $stackFrame->pointers[%d] = kush_%s;\n",
-                parameter->index, parameter->name);
+    LLVMTypeRef llvmReturnType = getLLVMVariableType(function->returnType);
+    LLVMTypeRef llvmFunctionType = LLVMFunctionType(llvmReturnType, llvmParameterTypes, parameterCount, false);
+    LLVMValueRef llvmFunction = LLVMAddFunction(generator->llvmModule, function->name, llvmFunctionType);
+    function->llvmValue = llvmFunction;
+    
+    if (function->body != NULL) {
+        for (int32_t i = 0; i < parameterCount; i++) {
+            Variable* parameter = (Variable*)function->parameters->m_values[i];
+            parameter->llvmValue = LLVMGetParam(llvmFunction, i);
+            parameter->parameter = true;
         }
+
+        LLVMBasicBlockRef llvmBlock = LLVMAppendBasicBlockInContext(generator->llvmContext, llvmFunction, "");
+        generator->llvmBuilder = LLVMCreateBuilder();
+        LLVMPositionBuilderAtEnd(generator->llvmBuilder, llvmBlock);
+
+        generateBlock(generator, function->body);
     }
 
-    generateBlock(generator, function->body, 1);
-    fprintf(generator->output, "    k_Runtime_popStackFrame(runtime);\n}\n\n");
-
     invalidate(generator);
+    deallocate(llvmParameterTypes);
 }
 
 void generateFunctions(Generator* generator, Module* module) {
-    int32_t functionCount = jtk_ArrayList_getSize(module->functions);
+    int32_t functionCount = module->functions->m_size;
     int32_t i;
     for (i = 0; i < functionCount; i++) {
-        Function* function = (Function*)jtk_ArrayList_getValue(
-            module->functions, i);
+        Function* function = (Function*)module->functions->m_values[i];
         generateFunction(generator, function);
     }
 }
 
-void generateConstructors(Generator* generator, Module* module) {
-    int32_t structureCount = jtk_ArrayList_getSize(module->structures);
-    int32_t j;
-    for (j = 0; j < structureCount; j++) {
-        Structure* structure = (Structure*)jtk_ArrayList_getValue(
-            module->structures, j);
+LLVMTypeRef getLLVMVariableType(Type* type) {
+    return (type->tag == TYPE_STRUCTURE)?
+    LLVMPointerType(type->llvmType, 0) : type->llvmType;
+}
 
-        fprintf(generator->output, "kush_%s* $%s_new(k_Runtime_t* runtime", structure->name, structure->name);
+LLVMValueRef getReferenceToAllocate(Generator* generator) {
+    LLVMTypeRef llvmReturnType = LLVMPointerType(
+        LLVMInt8TypeInContext(generator->llvmContext), 0);
+    LLVMTypeRef llvmParameterTypes[] = {
+        LLVMInt64TypeInContext(generator->llvmContext),
+    };
+    LLVMTypeRef llvmFunctionType = LLVMFunctionType(llvmReturnType, llvmParameterTypes, 1, false);
+    LLVMValueRef llvmFunction = LLVMAddFunction(generator->llvmModule, "ksAllocate", llvmFunctionType);
+    return llvmFunction;
+}
 
-        int32_t declarationCount = jtk_ArrayList_getSize(structure->declarations);
-        int32_t i;
-        for (i = 0; i < declarationCount; i++) {
-            VariableDeclaration* declaration =
-                (VariableDeclaration*)jtk_ArrayList_getValue(structure->declarations, i);
+void generateConstructor(Generator* generator, Structure* structure, LLVMTypeRef* llvmParameterTypes, int parameterCount) {
+    LLVMTypeRef llvmStructure = structure->type->llvmType;
+    LLVMTypeRef llvmStructurePtr = LLVMPointerType(llvmStructure, 0);
+    LLVMTypeRef llvmFunctionType = LLVMFunctionType(llvmStructurePtr, llvmParameterTypes,
+        parameterCount, false);
+    LLVMValueRef llvmFunction = LLVMAddFunction(generator->llvmModule, structure->name, llvmFunctionType);
+    structure->llvmConstructor = llvmFunction;
 
-            int32_t limit = jtk_ArrayList_getSize(declaration->variables);
-            int32_t j;
-            for (j = 0; j < limit; j++) {
-                Variable* variable = (Variable*)jtk_ArrayList_getValue(declaration->variables, j);
-                fprintf(generator->output, ", ");
-                generateType(generator, variable->type);
-                fprintf(generator->output, " %s", variable->name);
-            }
-        }
-
-        fprintf(generator->output, ") {\n");
-
-        int32_t references = 0;
-        for (i = 0; i < declarationCount; i++) {
-            VariableDeclaration* declaration =
-                (VariableDeclaration*)jtk_ArrayList_getValue(structure->declarations, i);
-
-            int32_t limit = jtk_ArrayList_getSize(declaration->variables);
-            int32_t j;
-            for (j = 0; j < limit; j++) {
-                Variable* variable = (Variable*)jtk_ArrayList_getValue(declaration->variables, j);
-                if (variable->type->reference) {
-                    references++;
-                }
-            }
-        }
-
-        fprintf(generator->output, "    k_StackFrame_t* $stackFrame = k_Runtime_pushStackFrame(runtime, \"$%s_new\", %d, %d);\n\n",
-            structure->name, structure->nameSize + 5, references + 1);
-        fprintf(generator->output, "    kush_%s* self = (kush_%s*)k_Allocator_allocate(runtime->allocator, sizeof (kush_%s));\n",
-            structure->name, structure->name, structure->name);
-        fprintf(generator->output, "    self->header.type = K_OBJECT_STRUCTURE_INSTANCE;\n\n");
-        fprintf(generator->output, "    $stackFrame->pointers[0] = self;\n");
-
-        int32_t index = 1;
-        for (i = 0; i < declarationCount; i++) {
-            VariableDeclaration* declaration =
-                (VariableDeclaration*)jtk_ArrayList_getValue(structure->declarations, i);
-
-            int32_t limit = jtk_ArrayList_getSize(declaration->variables);
-            int32_t j;
-            for (j = 0; j < limit; j++) {
-                Variable* variable = (Variable*)jtk_ArrayList_getValue(declaration->variables, j);
-                if (variable->type->reference) {
-                    fprintf(generator->output, "    $stackFrame->pointers[%d] = %s;\n",
-                        index, variable->name);
-                    index++;
-                }
-            }
-        }
-
-        fprintf(generator->output, "\n");
-        for (i = 0; i < declarationCount; i++) {
-            VariableDeclaration* declaration =
-                (VariableDeclaration*)jtk_ArrayList_getValue(structure->declarations, i);
-
-            int32_t limit = jtk_ArrayList_getSize(declaration->variables);
-            int32_t j;
-            for (j = 0; j < limit; j++) {
-                Variable* variable = (Variable*)jtk_ArrayList_getValue(declaration->variables, j);
-                fprintf(generator->output, "    self->%s = %s;\n", variable->name,
-                    variable->name);
-            }
-        }
-
-        fprintf(generator->output, "    kush_return(self);\n}");
+    LLVMValueRef llvmParameters[parameterCount];
+    for (int32_t j = 0; j < parameterCount; j++) {
+        llvmParameters[j] = LLVMGetParam(llvmFunction, j);
     }
 
-    fprintf(generator->output, "\n\n");
+    LLVMBasicBlockRef llvmBlock = LLVMAppendBasicBlock(llvmFunction, "");
+    generator->llvmBuilder = LLVMCreateBuilder();
+    LLVMPositionBuilderAtEnd(generator->llvmBuilder, llvmBlock);
+
+    LLVMTargetDataRef llvmTargetData = LLVMGetModuleDataLayout(generator->llvmModule);
+    uint64_t size = LLVMABISizeOfType(llvmTargetData, llvmStructure);
+
+    LLVMValueRef llvmAllocateArguments[] = {
+        LLVMConstInt(LLVMInt64TypeInContext(generator->llvmContext), size, false)
+    };
+    LLVMValueRef llvmObject = LLVMBuildCall(generator->llvmBuilder, generator->llvmAllocate, llvmAllocateArguments, 1, "");
+    LLVMValueRef llvmSelf = LLVMBuildPointerCast(generator->llvmBuilder, llvmObject, llvmStructurePtr, "");
+
+    for (int32_t i = 0; i < parameterCount; i++) {
+        LLVMValueRef llvmField = LLVMBuildStructGEP2(generator->llvmBuilder, llvmStructure, llvmSelf, i, "");
+        LLVMBuildStore(generator->llvmBuilder, llvmParameters[i], llvmField);
+    }
+
+    LLVMBuildRet(generator->llvmBuilder, llvmSelf);
 }
 
-void generateHeader(Generator* generator, Module* module) {
-    fprintf(generator->output, "// Do not edit this file.\n"
-        "// It was automatically generated by kush v%d.%d.\n\n",
-        KUSH_VERSION_MAJOR, KUSH_VERSION_MINOR);
-    fprintf(generator->output, "#pragma once\n\n");
-    fprintf(generator->output, "#include \"kush-runtime.h\"\n\n");
+void generateStructure(Generator* generator, Structure* structure) {
+    int32_t declarationCount = structure->declarations->m_size;
+    int32_t totalVariables = 0;
+    for (int i = 0; i < declarationCount; i++) {
+        VariableDeclaration* declaration =
+            (VariableDeclaration*)structure->declarations->m_values[i];
+        totalVariables += declaration->variables->m_size;
+    }
 
-    generateForwardReferences(generator, module);
+    LLVMTypeRef llvmVariableTypes[totalVariables];
+    int32_t m = 0;
+    for (int i = 0; i < declarationCount; i++) {
+        VariableDeclaration* declaration =
+            (VariableDeclaration*)structure->declarations->m_values[i];
+
+        int32_t variableCount = declaration->variables->m_size;
+        for (int j = 0; j < variableCount; j++) {
+            Variable* variable = (Variable*)declaration->variables->m_values[j];
+            variable->index = m++;
+            // TODO: Implement forward references `struct Node { Node next; }`
+            llvmVariableTypes[variable->index] = getLLVMVariableType(variable->type);
+        }
+    }
+
+    structure->type->llvmType = LLVMStructTypeInContext(generator->llvmContext,
+        llvmVariableTypes, totalVariables, false);
+    structure->type->llvmDefaultValue = LLVMConstNull(LLVMPointerType(structure->type->llvmType, 0));
+    generateConstructor(generator, structure, llvmVariableTypes, totalVariables);
+}
+
+void generateStructures(Generator* generator, Module* module) {
+    int32_t structureCount = module->structures->m_size;
+    int32_t j;
+    for (j = 0; j < structureCount; j++) {
+        Structure* structure = (Structure*)(module->structures->m_values[j]);
+        generateStructure(generator, structure);
+    }
+}
+
+bool generateLLVM(Generator* generator, Module* module, const char* name) {
+    LLVMModuleRef llvmModule = LLVMModuleCreateWithNameInContext(name,
+        generator->llvmContext);
+    LLVMSetDataLayout(llvmModule, "");
+    LLVMSetTarget(llvmModule, LLVMGetDefaultTargetTriple());
+
+    generator->llvmModule = llvmModule;
+    generator->llvmBuilder = LLVMCreateBuilder();
+    generator->llvmAllocate = getReferenceToAllocate(generator);
+
     generateStructures(generator, module);
-}
-
-void generateSource(Generator* generator, Module* module, const uint8_t* headerName) {
-    fprintf(generator->output, "// Do not edit this file.\n"
-        "// It was automatically generated by kush v%d.%d.\n\n",
-        KUSH_VERSION_MAJOR, KUSH_VERSION_MINOR);
-    fprintf(generator->output, "#include \"%s\"\n\n", headerName);
-
-    generateConstructors(generator, module);
     generateFunctions(generator, module);
+
+    char* error = NULL;
+    bool invalid = LLVMVerifyModule(generator->llvmModule, LLVMAbortProcessAction, &error);
+    if (!invalid) {
+        char* data = LLVMPrintModuleToString(generator->llvmModule);
+        fprintf(generator->output, data);
+        LLVMDisposeMessage(data);
+    }
+    else {
+        fprintf(stderr, "[error] %s\n", error);
+    }
+    LLVMDisposeMessage(error);
+
+    return !invalid;
 }
 
-void generateC(Generator* generator, Module* module) {
+void generateIR(Generator* generator, Module* module) {
     Compiler* compiler = generator->compiler;
-    const uint8_t* path = (const uint8_t*)jtk_ArrayList_getValue(compiler->inputFiles,
-        compiler->currentFileIndex);
+    const uint8_t* path = (const uint8_t*)compiler->inputFiles
+        ->m_values[compiler->currentFileIndex];
 
     int pathSize = jtk_CString_getSize(path);
-    uint8_t* sourceName = allocate(uint8_t, pathSize - 3);
-    uint8_t* headerName = allocate(uint8_t, pathSize - 3);
+    uint8_t* sourceName = allocate(uint8_t, pathSize - 1);
 
     int32_t i;
     for (i = 0; i < pathSize - 4; i++) {
         sourceName[i] = path[i];
-        headerName[i] = path[i];
     }
-    sourceName[i] = 'c';
-    sourceName[i + 1] = '\0';
-    headerName[i] = 'h';
-    headerName[i + 1] = '\0';
+    sourceName[i] = 'l';
+    sourceName[i + 1] = 'l';
+    sourceName[i + 2] = '\0';
 
     generator->output = fopen(sourceName, "w+");
-    generateSource(generator, module, headerName);
-    fclose(generator->output);
+    generateLLVM(generator, module, sourceName);
 
-    generator->output = fopen(headerName, "w+");
-    generateHeader(generator, module);
+    // fprintf(generator->output, "\ndefine i32 @main() {\nret i32 0\n}");
     fclose(generator->output);
 
     deallocate(sourceName);
-    deallocate(headerName);
 }
 
 Generator* newGenerator(Compiler* compiler) {
     Generator* generator = allocate(Generator, 1);
     generator->compiler = compiler;
     generator->scope = NULL;
-    generator->index = 0;
+    generator->llvmContext = compiler->llvmContext;
+    generator->validLeftValue = false;
     return generator;
 }
 

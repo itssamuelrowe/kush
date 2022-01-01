@@ -20,6 +20,7 @@
 
 #include <kush/analyzer.h>
 #include <kush/error-handler.h>
+#include <kush/context.h>
 
 #warning "TODO: Report invalid lvalue"
 #warning "TODO: Print the line where the error occurs"
@@ -138,11 +139,11 @@ static Type* resolveExpression(Analyzer* analyzer, Context* context);
 
 #define isUndefined(scope, identifier) (resolveSymbol(scope, identifier) == NULL)
 
-// String:equals(x, y)
-// x.equals(y)
-// bool k_String_equals(k_Runtime_t* runtime, k_String_t* self, k_String_t* other) {
-//     k_assertObject(self);
-// }
+/**
+ * Albeit expected and actual are both instances of Type, the arguments cannot
+ * be interchanged.
+ */
+#define isTypeMatch(expected, actual) ((expected == actual) || (expected->reference && (actual->tag == TYPE_NULL)))
 
 // Array Type
 
@@ -156,7 +157,7 @@ Type* getArrayType(Analyzer* analyzer, Type* base, int32_t dimensions) {
                 (Type*)jtk_ArrayList_getValue(base->arrayTypes, maxDimensions - 1);
             int32_t dimension;
             for (dimension = maxDimensions + 1; dimension <= dimensions; dimension++) {
-                Type* type = newType(TYPE_ARRAY, true, true, false, true, NULL);
+                Type* type = newType(TYPE_ARRAY, true, true, false, true, NULL, NULL, NULL);
                 type->array.array = (Structure*)resolveSymbol(analyzer->scope, "$Array");
                 type->array.base = base;
                 type->array.component = previous;
@@ -263,7 +264,9 @@ void defineFunction(Analyzer* analyzer, Function* function) {
         }
     }
 
-    defineLocals(analyzer, function->body);
+    if (function->body != NULL) {
+        defineLocals(analyzer, function->body);
+    }
 
     invalidate(analyzer);
 }
@@ -490,7 +493,7 @@ void resolveVariable(Analyzer* analyzer, Variable* variable) {
     }
     else {
         variable->type = resolveVariableType(analyzer, variable->variableType);
-        if ((variable->expression != NULL) && (variable->type != initializerType)) {
+        if ((variable->expression != NULL) && !isTypeMatch(variable->type, initializerType)) {
             handleSemanticError(handler, analyzer, ERROR_INCOMPATIBLE_VARIABLE_INITIALIZER,
                 variable->identifier);
         }
@@ -536,7 +539,9 @@ void resolveFunction(Analyzer* analyzer, Function* function) {
     }
 
     analyzer->scope = function->scope;
-    resolveLocals(analyzer, function->body);
+    if (function->body != NULL) {
+        resolveLocals(analyzer, function->body);
+    }
     invalidate(analyzer);
 
     function->totalReferences = analyzer->index;
@@ -651,10 +656,18 @@ void resolveBreakStatement(Analyzer* analyzer, BreakStatement* statement) {
 
 void resolveReturnStatement(Analyzer* analyzer, ReturnStatement* statement) {
     ErrorHandler* handler = analyzer->compiler->errorHandler;
-    Type* type = resolveExpression(analyzer, (Context*)statement->expression);
-    if (analyzer->function->returnType != type) {
-        handleSemanticError(handler, analyzer, ERROR_INCOMPATIBLE_RETURN_VALUE,
-            statement->keyword);
+    if (statement->expression == NULL) {
+        if (analyzer->function->returnType != &primitives.void_) {
+            handleSemanticError(handler, analyzer, ERROR_INCOMPATIBLE_RETURN_VALUE,
+                statement->keyword);
+        }
+    }
+    else {
+        Type* type = resolveExpression(analyzer, (Context*)statement->expression);
+        if (!isTypeMatch(analyzer->function->returnType, type)) {
+            handleSemanticError(handler, analyzer, ERROR_INCOMPATIBLE_RETURN_VALUE,
+                statement->keyword);
+        }
     }
 }
 
@@ -738,7 +751,7 @@ Type* resolveAssignment(Analyzer* analyzer, BinaryExpression* expression) {
             jtk_Pair_t* pair = (jtk_Pair_t*)jtk_ArrayList_getValue(expression->others, i);
             Type* rightType = resolveExpression(analyzer, (Context*)pair->m_right);
 
-            if ((rightType != NULL) && (result != rightType)) {
+            if ((rightType != NULL) && !isTypeMatch(result, rightType)) {
                 handleSemanticError(handler, analyzer, ERROR_INCOMPATIBLE_OPERAND_TYPES,
                     (Token*)pair->m_left);
             }
@@ -1074,7 +1087,7 @@ Type* resolveFunctionArguments(Analyzer* analyzer, FunctionArguments* arguments,
                         arguments->expressions, j);
                     Type* argumentType = resolveExpression(analyzer, (Context*)argument);
                     Variable* parameter = (Variable*)jtk_ArrayList_getValue(function->parameters, j);
-                    if (argumentType != parameter->type) {
+                    if (!isTypeMatch(argumentType, parameter->type)) {
                         handleSemanticError(handler, analyzer, ERROR_INCOMPATIBLE_ARGUMENT_TYPE,
                             arguments->parenthesis);
                         /* Since the error message points to the parenthesis, there is
@@ -1109,6 +1122,7 @@ Type* resolveStructureMember(Analyzer* analyzer, Structure* structure, Token* id
 }
 
 Type* resolveMemberAccess(Analyzer* analyzer, MemberAccess* access, Type* previous) {
+    access->previous = previous;
     Type* result = NULL;
     ErrorHandler* handler = analyzer->compiler->errorHandler;
     if (!previous->accessible) {
@@ -1261,7 +1275,7 @@ Type* resolveNew(Analyzer* analyzer, NewExpression* expression) {
                         identifier);
                 }
                 else {
-                    if ((type != NULL) && (type != member->type)) {
+                    if ((type != NULL) && !isTypeMatch(member->type, type)) {
                         handleSemanticError(handler, analyzer, ERROR_INCOMPATIBLE_VARIABLE_INITIALIZER,
                             identifier);
                     }
@@ -1310,7 +1324,7 @@ Type* resolveArray(Analyzer* analyzer, ArrayExpression* expression) {
                 firstType = type;
             }
             else {
-                if (type != firstType) {
+                if (!isTypeMatch(firstType, type)) {
                     handleSemanticError(handler, analyzer, ERROR_ARRAY_MEMBERS_SHOULD_HAVE_SAME_TYPE,
                         expression->token);
                     error = true;
@@ -1448,7 +1462,7 @@ Structure* addSyntheticStructure(Analyzer* analyzer, const uint8_t* name,
 
 Variable* addSyntheticMember(Analyzer* analyzer, Structure* structure,
     bool constant, const uint8_t* name, int32_t nameSize, Type* type) {
-    Variable* variable = newVariable(false, constant, NULL, name, nameSize,
+    Variable* variable = newVariable(false, constant, false,  NULL, name, nameSize,
         NULL, NULL, structure->scope);
     variable->type = type;
     defineSymbol(structure->scope, variable);
@@ -1466,7 +1480,7 @@ void addSyntheticFunction(Analyzer* analyzer, const uint8_t* name,
 
 Variable* makeParameter(Analyzer* analyzer, const uint8_t* name, int32_t nameSize,
     Type* type) {
-    Variable* variable = newVariable(false, false, NULL, name,
+    Variable* variable = newVariable(false, false, true, NULL, name,
         nameSize, NULL, NULL, analyzer->scope);
     variable->type = type;
     return variable;

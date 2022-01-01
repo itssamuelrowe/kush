@@ -757,8 +757,8 @@ Function* parseFunctionDeclaration(Parser* parser,
     popFollowToken(parser);
 
     Block* body = NULL;
-    if (false /*k_Modifier_hasNative(modifiers) */) {
-        match(parser, TOKEN_SEMICOLON);
+    if (la(parser, 1) == TOKEN_SEMICOLON) {
+        consume(parser);
     }
     else {
 	    body = parseBlock(parser);
@@ -811,7 +811,7 @@ void parseFunctionParameters(Parser* parser,
             Token* identifier = matchAndYield(parser, TOKEN_IDENTIFIER);
             first = false;
 
-            Variable* parameter = newVariable(false, false, type, identifier->text,
+            Variable* parameter = newVariable(false, false, true, type, identifier->text,
                 identifier->length, identifier, NULL, NULL);
             if (variadic) {
                 *variableParameter = parameter;
@@ -1029,7 +1029,7 @@ void parseVariableDeclarator(Parser* parser, bool infer, bool constant,
         expression = parseExpression(parser);
 	}
 
-    Variable* variable = newVariable(infer, constant, variableType,
+    Variable* variable = newVariable(infer, constant, false, variableType,
         identifier->text, identifier->length, identifier, expression, NULL);
     jtk_ArrayList_add(variables, variable);
 }
@@ -1056,7 +1056,9 @@ BreakStatement* parseBreakStatement(Parser* parser) {
 ReturnStatement* parseReturnStatement(Parser* parser) {
     ReturnStatement* context = newReturnStatement();
     context->keyword = matchAndYield(parser, TOKEN_KEYWORD_RETURN);
-    context->expression = parseExpression(parser);
+    if (la(parser, 1) != TOKEN_SEMICOLON) {
+        context->expression = parseExpression(parser);
+    }
     return context;
 }
 
@@ -1308,7 +1310,7 @@ CatchClause* parseCatchClause(Parser* parser) {
 	}
 
     Token* identifier = matchAndYield(parser, TOKEN_IDENTIFIER);
-    context->parameter = newVariable(false, true, &primitives.string,
+    context->parameter = newVariable(false, true, false, &primitives.string,
         identifier->text, identifier->length, identifier, NULL, NULL);
     context->body = parseBlock(parser);
 
@@ -1422,7 +1424,7 @@ BinaryExpression* parseAssignmentExpression(Parser* parser) {
 
 /*
  * conditionalExpression
- * :	condition ('then' expression 'else' conditionalExpression)?
+ * :	condition ('?' expression ':' conditionalExpression)?
  * ;
  */
 ConditionalExpression* parseConditionalExpression(Parser* parser) {
@@ -1717,6 +1719,11 @@ PostfixExpression* parsePostfixExpression(Parser* parser) {
                 jtk_ArrayList_add(context->postfixParts, memberAccess);
                 break;
             }
+
+            default: {
+                controlError();
+                break;
+            }
         }
         la1 = la(parser, 1);
     }
@@ -1781,7 +1788,7 @@ MemberAccess* parseMemberAccess(Parser* parser) {
     MemberAccess* context = newMemberAccess();
     match(parser, TOKEN_DOT);
     context->identifier = matchAndYield(parser, TOKEN_IDENTIFIER);
-    parser->placeholder = false;
+    parser->placeholder = true;
     return context;
 }
 
