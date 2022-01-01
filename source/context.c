@@ -242,7 +242,7 @@ Primitives primitives = {
 
 void initializePrimitives(LLVMContextRef llvmContext) {
     primitives.boolean.arrayTypes = jtk_ArrayList_new();
-    primitives.boolean.llvmType = LLVMInt1TypeInContext(llvmContext);
+    primitives.boolean.llvmType = LLVMInt8TypeInContext(llvmContext);
     primitives.boolean.llvmDefaultValue = LLVMConstInt(primitives.boolean.llvmType, 0, false);
 
     primitives.i8.arrayTypes = jtk_ArrayList_new();
