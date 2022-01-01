@@ -334,6 +334,7 @@ void deletePostfixExpression(PostfixExpression* self);
 struct MemberAccess {
     ContextType tag;
     Token* identifier;
+    Type* previous;
 };
 
 typedef struct MemberAccess MemberAccess;

@@ -5,11 +5,13 @@ LLVMValueRef generateArray(Generator* generator, ArrayExpression* context);
 LLVMValueRef generateObject(Generator* generator, NewExpression* expression);
 LLVMValueRef generateNew(Generator* generator, NewExpression* context);
 int32_t getRadix(const uint8_t** text, int32_t* length);
-LLVMValueRef generatePrimary(Generator* generator, void* context, bool token, Symbol** symbol);
+LLVMValueRef generatePrimary(Generator* generator, void* context, bool token,
+    Symbol** symbol, int32_t count);
 LLVMValueRef generateSubscript(Generator* generator, Subscript* context);
 LLVMValueRef generateFunctionArguments(Generator* generator, Function* function,
     FunctionArguments* context);
-LLVMValueRef generateMemberAccess(Generator* generator, MemberAccess* context);
+LLVMValueRef generateMemberAccess(Generator* generator, MemberAccess* context,
+    LLVMValueRef object);
 LLVMValueRef generatePostfix(Generator* generator, PostfixExpression* context);
 LLVMValueRef generateUnary(Generator* generator, UnaryExpression* context);
 LLVMValueRef generateMultiplicative(Generator* generator, BinaryExpression* context);
@@ -34,6 +36,8 @@ void generateIf(Generator* generator, IfStatement* context);
 void generateIterative(Generator* generator, IterativeStatement* statement);
 void generateBlock(Generator* generator, Block* block);
 void generateFunction(Generator* generator, Function* function);
+LLVMTypeRef getLLVMVariableType(Type* type);
+LLVMValueRef getReferenceToAllocate(Generator* generator);
 void generateFunctions(Generator* generator, Module* module);
 void generateStructure(Generator* generator, Structure* structure);
 void generateStructures(Generator* generator, Module* module);
@@ -161,7 +165,7 @@ int32_t getRadix(const uint8_t** text, int32_t* length) {
     return radix;
 }
 
-LLVMValueRef generatePrimary(Generator* generator, void* context, bool token, Symbol** symbol) {
+LLVMValueRef generatePrimary(Generator* generator, void* context, bool token, Symbol** symbol, int count) {
     LLVMValueRef result;
     if (token) {
         Token* token0 = (Token*)context;
@@ -206,7 +210,7 @@ LLVMValueRef generatePrimary(Generator* generator, void* context, bool token, Sy
                 *symbol = resolved;
                 if (resolved->tag == CONTEXT_VARIABLE) {
                     Variable* variable = (Variable*)resolved;
-                    if (generator->validLeftValue) {
+                    if (generator->validLeftValue || count > 0) {
                         result = variable->llvmValue;
                     }
                     else {
@@ -269,16 +273,22 @@ LLVMValueRef generateFunctionArguments(Generator* generator, Function* function,
     return result;
 }
 
-LLVMValueRef generateMemberAccess(Generator* generator, MemberAccess* context) {
-    LLVMValueRef result;
-    return result;
+LLVMValueRef generateMemberAccess(Generator* generator, MemberAccess* context,
+    LLVMValueRef object) {
+    Variable* variable = (Variable*)resolveSymbol(context->previous->structure->scope,
+        context->identifier->text);
+    LLVMValueRef pointer = LLVMBuildLoad(generator->llvmBuilder, object, "");
+    LLVMValueRef field = LLVMBuildStructGEP2(generator->llvmBuilder, context->previous->structure->type->llvmType,
+        pointer, variable->index, "");
+    return LLVMBuildLoad(generator->llvmBuilder, field, "");
 }
 
 LLVMValueRef generatePostfix(Generator* generator, PostfixExpression* context) {
     Symbol* symbol = NULL;
-    LLVMValueRef result = generatePrimary(generator, context->primary, context->token, &symbol);
+    int32_t count = context->postfixParts->m_size;
+    LLVMValueRef result = generatePrimary(generator, context->primary, context->token, &symbol, count);
 
-    for (int32_t i = 0; i < context->postfixParts->m_size; i++) {
+    for (int32_t i = 0; i < count; i++) {
         Context* postfixPart = context->postfixParts->m_values[i];
         switch (postfixPart->tag) {
             case CONTEXT_SUBSCRIPT: {
@@ -292,7 +302,7 @@ LLVMValueRef generatePostfix(Generator* generator, PostfixExpression* context) {
             }
 
             case CONTEXT_MEMBER_ACCESS: {
-                generateMemberAccess(generator, (MemberAccess*)postfixPart);
+                result = generateMemberAccess(generator, (MemberAccess*)postfixPart, result);
                 break;
             }
 
@@ -678,8 +688,8 @@ void generateVariableDeclaration(Generator* generator, VariableDeclaration* cont
     int32_t count = context->variables->m_size;
     for (int32_t j = 0; j < count; j++) {
         Variable* variable = (Variable*)context->variables->m_values[j];
-
-        variable->llvmValue = LLVMBuildAlloca(generator->llvmBuilder, variable->type->llvmType,
+        LLVMTypeRef llvmType = getLLVMVariableType(variable->type);
+        variable->llvmValue = LLVMBuildAlloca(generator->llvmBuilder, llvmType,
             "");
 
         LLVMValueRef rhs = (variable->expression != NULL)?
@@ -829,7 +839,7 @@ void generateFunction(Generator* generator, Function* function) {
 
     for (int32_t i = 0; i < parameterCount; i++) {
         Variable* parameter = (Variable*)function->parameters->m_values[i];
-        llvmParameterTypes[i] = parameter->type->llvmType;
+        llvmParameterTypes[i] = getLLVMVariableType(parameter->type);
     }
 
     // TODO: Variable parameter
@@ -867,7 +877,7 @@ void generateFunctions(Generator* generator, Module* module) {
 
 LLVMTypeRef getLLVMVariableType(Type* type) {
     return (type->tag == TYPE_STRUCTURE)?
-        LLVMPointerType(type->llvmType, 0) : type->llvmType;
+    LLVMPointerType(type->llvmType, 0) : type->llvmType;
 }
 
 LLVMValueRef getReferenceToAllocate(Generator* generator) {
@@ -935,8 +945,9 @@ void generateStructure(Generator* generator, Structure* structure) {
         int32_t variableCount = declaration->variables->m_size;
         for (int j = 0; j < variableCount; j++) {
             Variable* variable = (Variable*)declaration->variables->m_values[j];
+            variable->index = m++;
             // TODO: Implement forward references `struct Node { Node next; }`
-            llvmVariableTypes[m++] = getLLVMVariableType(variable->type);
+            llvmVariableTypes[variable->index] = getLLVMVariableType(variable->type);
         }
     }
 
