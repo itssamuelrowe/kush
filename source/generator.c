@@ -2,6 +2,7 @@
 #include <jtk/collection/Pair.h>
 
 LLVMValueRef generateArray(Generator* generator, ArrayExpression* context);
+LLVMValueRef generateObject(Generator* generator, NewExpression* expression);
 LLVMValueRef generateNew(Generator* generator, NewExpression* context);
 int32_t getRadix(const uint8_t** text, int32_t* length);
 LLVMValueRef generatePrimary(Generator* generator, void* context, bool token, Symbol** symbol);
@@ -44,8 +45,78 @@ LLVMValueRef generateArray(Generator* generator, ArrayExpression* context) {
     return result;
 }
 
+LLVMValueRef generateObject(Generator* generator, NewExpression* expression) {
+    Type* type = expression->type;
+    Structure* structure = type->structure;
+
+    int32_t totalVariables = 0;
+    int32_t declarationCount = structure->declarations->m_size;
+    for (int32_t i = 0; i < declarationCount; i++) {
+        VariableDeclaration* declaration =
+            (VariableDeclaration*)structure->declarations->m_values[i];
+        totalVariables += declaration->variables->m_size;
+    }
+
+    LLVMValueRef llvmArguments[totalVariables];
+    for (int32_t i = 0; i < totalVariables; i++) {
+        llvmArguments[i] = NULL;
+    }
+
+    /* For each entry in the object intializer, we apply linear search on the declared variables
+     * to find the index of the field. A better solution would be to use a hash map.
+     */
+    int32_t entryCount = expression->entries->m_size;
+    for (int i = 0; i < entryCount; i++) {
+        jtk_Pair_t* pair = (jtk_Pair_t*)expression->entries->m_values[i];
+        Token* identifier = (Token*)pair->m_left;
+
+        int32_t index = 0;
+        for (int32_t j = 0; j < declarationCount; j++) {
+            VariableDeclaration* declaration =
+                (VariableDeclaration*)structure->declarations->m_values[j];
+            int32_t variableCount = declaration->variables->m_size;
+            for (int32_t k = 0; k < variableCount; k++) {
+                Variable* variable = (Variable*)declaration->variables->m_values[k];
+                if (jtk_CString_equals(variable->name, variable->nameSize,
+                    identifier->text, identifier->length)) {
+                    goto found;
+                }
+                index++;
+            }
+        }
+
+        found:
+            if (index != totalVariables) {
+                llvmArguments[index] = generateExpression(generator, (Context*)pair->m_right);
+            }
+    }
+
+    int32_t m = 0;
+    for (int32_t i = 0; i < declarationCount; i++) {
+        VariableDeclaration* declaration =
+            (VariableDeclaration*)structure->declarations->m_values[i];
+        int32_t variableCount = declaration->variables->m_size;
+        for (int32_t j = 0; j < variableCount; j++) {
+            if (llvmArguments[m] == NULL) {
+                Variable* variable = declaration->variables->m_values[j];
+                llvmArguments[m] = variable->type->llvmDefaultValue;
+            }
+            m++;
+        }
+    }
+
+    return LLVMBuildCall(generator->llvmBuilder, structure->llvmConstructor, llvmArguments,
+        totalVariables, "");
+}
+
 LLVMValueRef generateNew(Generator* generator, NewExpression* context) {
     LLVMValueRef result;
+    Type* type = context->type;
+    if (type->tag == TYPE_ARRAY) {
+    }
+    else {
+        result = generateObject(generator, context);
+    }
     return result;
 }
 
