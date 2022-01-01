@@ -892,8 +892,6 @@ LLVMValueRef getReferenceToAllocate(Generator* generator) {
 }
 
 void generateConstructor(Generator* generator, Structure* structure, LLVMTypeRef* llvmParameterTypes, int parameterCount) {
-    LLVMValueRef llvmAllocate = getReferenceToAllocate(generator);
-
     LLVMTypeRef llvmStructure = structure->type->llvmType;
     LLVMTypeRef llvmStructurePtr = LLVMPointerType(llvmStructure, 0);
     LLVMTypeRef llvmFunctionType = LLVMFunctionType(llvmStructurePtr, llvmParameterTypes,
@@ -916,7 +914,7 @@ void generateConstructor(Generator* generator, Structure* structure, LLVMTypeRef
     LLVMValueRef llvmAllocateArguments[] = {
         LLVMConstInt(LLVMInt64TypeInContext(generator->llvmContext), size, false)
     };
-    LLVMValueRef llvmObject = LLVMBuildCall(generator->llvmBuilder, llvmAllocate, llvmAllocateArguments, 1, "");
+    LLVMValueRef llvmObject = LLVMBuildCall(generator->llvmBuilder, generator->llvmAllocate, llvmAllocateArguments, 1, "");
     LLVMValueRef llvmSelf = LLVMBuildPointerCast(generator->llvmBuilder, llvmObject, llvmStructurePtr, "");
 
     for (int32_t i = 0; i < parameterCount; i++) {
@@ -974,6 +972,7 @@ bool generateLLVM(Generator* generator, Module* module, const char* name) {
 
     generator->llvmModule = llvmModule;
     generator->llvmBuilder = LLVMCreateBuilder();
+    generator->llvmAllocate = getReferenceToAllocate(generator);
 
     generateStructures(generator, module);
     generateFunctions(generator, module);
