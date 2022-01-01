@@ -11,7 +11,7 @@ LLVMValueRef generateSubscript(Generator* generator, Subscript* context);
 LLVMValueRef generateFunctionArguments(Generator* generator, Function* function,
     FunctionArguments* context);
 LLVMValueRef generateMemberAccess(Generator* generator, MemberAccess* context,
-    LLVMValueRef object);
+    LLVMValueRef object, bool last);
 LLVMValueRef generatePostfix(Generator* generator, PostfixExpression* context);
 LLVMValueRef generateUnary(Generator* generator, UnaryExpression* context);
 LLVMValueRef generateMultiplicative(Generator* generator, BinaryExpression* context);
@@ -210,8 +210,12 @@ LLVMValueRef generatePrimary(Generator* generator, void* context, bool token, Sy
                 *symbol = resolved;
                 if (resolved->tag == CONTEXT_VARIABLE) {
                     Variable* variable = (Variable*)resolved;
-                    if (generator->validLeftValue || count > 0) {
+                    if (generator->validLeftValue) {
                         result = variable->llvmValue;
+
+                        if (count > 0) {
+                            result = LLVMBuildLoad(generator->llvmBuilder, result, "");
+                        }
                     }
                     else {
                         if (variable->parameter) {
@@ -274,13 +278,18 @@ LLVMValueRef generateFunctionArguments(Generator* generator, Function* function,
 }
 
 LLVMValueRef generateMemberAccess(Generator* generator, MemberAccess* context,
-    LLVMValueRef object) {
+    LLVMValueRef object, bool last) {
     Variable* variable = (Variable*)resolveSymbol(context->previous->structure->scope,
         context->identifier->text);
-    LLVMValueRef pointer = LLVMBuildLoad(generator->llvmBuilder, object, "");
-    LLVMValueRef field = LLVMBuildStructGEP2(generator->llvmBuilder, context->previous->structure->type->llvmType,
-        pointer, variable->index, "");
-    return LLVMBuildLoad(generator->llvmBuilder, field, "");
+    LLVMValueRef result = LLVMBuildStructGEP2(generator->llvmBuilder,
+        context->previous->structure->type->llvmType, object, variable->index, "");
+
+    if ((last && !generator->validLeftValue) ||
+        (context->previous->tag == TYPE_STRUCTURE && !last)) {
+        result = LLVMBuildLoad(generator->llvmBuilder, result, "");
+    }
+
+    return result;
 }
 
 LLVMValueRef generatePostfix(Generator* generator, PostfixExpression* context) {
@@ -302,7 +311,7 @@ LLVMValueRef generatePostfix(Generator* generator, PostfixExpression* context) {
             }
 
             case CONTEXT_MEMBER_ACCESS: {
-                result = generateMemberAccess(generator, (MemberAccess*)postfixPart, result);
+                result = generateMemberAccess(generator, (MemberAccess*)postfixPart, result, i + 1 == count);
                 break;
             }
 

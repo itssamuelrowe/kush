@@ -1788,7 +1788,7 @@ MemberAccess* parseMemberAccess(Parser* parser) {
     MemberAccess* context = newMemberAccess();
     match(parser, TOKEN_DOT);
     context->identifier = matchAndYield(parser, TOKEN_IDENTIFIER);
-    parser->placeholder = false;
+    parser->placeholder = true;
     return context;
 }
 
