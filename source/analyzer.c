@@ -139,11 +139,11 @@ static Type* resolveExpression(Analyzer* analyzer, Context* context);
 
 #define isUndefined(scope, identifier) (resolveSymbol(scope, identifier) == NULL)
 
-// String:equals(x, y)
-// x.equals(y)
-// bool k_String_equals(k_Runtime_t* runtime, k_String_t* self, k_String_t* other) {
-//     k_assertObject(self);
-// }
+/**
+ * Albeit expected and actual are both instances of Type, the arguments cannot
+ * be interchanged.
+ */
+#define isTypeMatch(expected, actual) ((expected == actual) || (expected->reference && (actual->tag == TYPE_NULL)))
 
 // Array Type
 
@@ -493,7 +493,7 @@ void resolveVariable(Analyzer* analyzer, Variable* variable) {
     }
     else {
         variable->type = resolveVariableType(analyzer, variable->variableType);
-        if ((variable->expression != NULL) && (variable->type != initializerType)) {
+        if ((variable->expression != NULL) && !isTypeMatch(variable->type, initializerType)) {
             handleSemanticError(handler, analyzer, ERROR_INCOMPATIBLE_VARIABLE_INITIALIZER,
                 variable->identifier);
         }
@@ -664,7 +664,7 @@ void resolveReturnStatement(Analyzer* analyzer, ReturnStatement* statement) {
     }
     else {
         Type* type = resolveExpression(analyzer, (Context*)statement->expression);
-        if (analyzer->function->returnType != type) {
+        if (!isTypeMatch(analyzer->function->returnType, type)) {
             handleSemanticError(handler, analyzer, ERROR_INCOMPATIBLE_RETURN_VALUE,
                 statement->keyword);
         }
@@ -751,7 +751,7 @@ Type* resolveAssignment(Analyzer* analyzer, BinaryExpression* expression) {
             jtk_Pair_t* pair = (jtk_Pair_t*)jtk_ArrayList_getValue(expression->others, i);
             Type* rightType = resolveExpression(analyzer, (Context*)pair->m_right);
 
-            if ((rightType != NULL) && (result != rightType)) {
+            if ((rightType != NULL) && !isTypeMatch(result, rightType)) {
                 handleSemanticError(handler, analyzer, ERROR_INCOMPATIBLE_OPERAND_TYPES,
                     (Token*)pair->m_left);
             }
@@ -1087,7 +1087,7 @@ Type* resolveFunctionArguments(Analyzer* analyzer, FunctionArguments* arguments,
                         arguments->expressions, j);
                     Type* argumentType = resolveExpression(analyzer, (Context*)argument);
                     Variable* parameter = (Variable*)jtk_ArrayList_getValue(function->parameters, j);
-                    if (argumentType != parameter->type) {
+                    if (!isTypeMatch(argumentType, parameter->type)) {
                         handleSemanticError(handler, analyzer, ERROR_INCOMPATIBLE_ARGUMENT_TYPE,
                             arguments->parenthesis);
                         /* Since the error message points to the parenthesis, there is
@@ -1275,7 +1275,7 @@ Type* resolveNew(Analyzer* analyzer, NewExpression* expression) {
                         identifier);
                 }
                 else {
-                    if ((type != NULL) && (type != member->type)) {
+                    if ((type != NULL) && !isTypeMatch(member->type, type)) {
                         handleSemanticError(handler, analyzer, ERROR_INCOMPATIBLE_VARIABLE_INITIALIZER,
                             identifier);
                     }
@@ -1324,7 +1324,7 @@ Type* resolveArray(Analyzer* analyzer, ArrayExpression* expression) {
                 firstType = type;
             }
             else {
-                if (type != firstType) {
+                if (!isTypeMatch(firstType, type)) {
                     handleSemanticError(handler, analyzer, ERROR_ARRAY_MEMBERS_SHOULD_HAVE_SAME_TYPE,
                         expression->token);
                     error = true;
