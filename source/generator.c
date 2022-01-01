@@ -853,7 +853,8 @@ void generateFunction(Generator* generator, Function* function) {
 
     // TODO: Variable parameter
 
-    LLVMTypeRef llvmFunctionType = LLVMFunctionType(function->returnType->llvmType, llvmParameterTypes, parameterCount, false);
+    LLVMTypeRef llvmReturnType = getLLVMVariableType(function->returnType);
+    LLVMTypeRef llvmFunctionType = LLVMFunctionType(llvmReturnType, llvmParameterTypes, parameterCount, false);
     LLVMValueRef llvmFunction = LLVMAddFunction(generator->llvmModule, function->name, llvmFunctionType);
     function->llvmValue = llvmFunction;
     
