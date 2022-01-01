@@ -35,6 +35,7 @@ void generateIterative(Generator* generator, IterativeStatement* statement);
 void generateBlock(Generator* generator, Block* block);
 void generateFunction(Generator* generator, Function* function);
 void generateFunctions(Generator* generator, Module* module);
+void generateStructure(Generator* generator, Structure* structure);
 void generateStructures(Generator* generator, Module* module);
 bool generateLLVM(Generator* generator, Module* module, const char* name);
 
@@ -916,38 +917,41 @@ void generateConstructor(Generator* generator, Structure* structure, LLVMTypeRef
     LLVMBuildRet(generator->llvmBuilder, llvmSelf);
 }
 
+void generateStructure(Generator* generator, Structure* structure) {
+    int32_t declarationCount = structure->declarations->m_size;
+    int32_t totalVariables = 0;
+    for (int i = 0; i < declarationCount; i++) {
+        VariableDeclaration* declaration =
+            (VariableDeclaration*)structure->declarations->m_values[i];
+        totalVariables += declaration->variables->m_size;
+    }
+
+    LLVMTypeRef llvmVariableTypes[totalVariables];
+    int32_t m = 0;
+    for (int i = 0; i < declarationCount; i++) {
+        VariableDeclaration* declaration =
+            (VariableDeclaration*)structure->declarations->m_values[i];
+
+        int32_t variableCount = declaration->variables->m_size;
+        for (int j = 0; j < variableCount; j++) {
+            Variable* variable = (Variable*)declaration->variables->m_values[j];
+            // TODO: Implement forward references `struct Node { Node next; }`
+            llvmVariableTypes[m++] = getLLVMVariableType(variable->type);
+        }
+    }
+
+    structure->type->llvmType = LLVMStructTypeInContext(generator->llvmContext,
+        llvmVariableTypes, totalVariables, false);
+    structure->type->llvmDefaultValue = LLVMConstNull(LLVMPointerType(structure->type->llvmType, 0));
+    generateConstructor(generator, structure, llvmVariableTypes, totalVariables);
+}
+
 void generateStructures(Generator* generator, Module* module) {
     int32_t structureCount = module->structures->m_size;
     int32_t j;
     for (j = 0; j < structureCount; j++) {
         Structure* structure = (Structure*)(module->structures->m_values[j]);
-
-        int32_t declarationCount = structure->declarations->m_size;
-        int32_t totalVariables = 0;
-        for (int i = 0; i < declarationCount; i++) {
-            VariableDeclaration* declaration =
-                (VariableDeclaration*)structure->declarations->m_values[i];
-            totalVariables += declaration->variables->m_size;
-        }
-
-        LLVMTypeRef llvmVariableTypes[totalVariables];
-        int32_t m = 0;
-        for (int i = 0; i < declarationCount; i++) {
-            VariableDeclaration* declaration =
-                (VariableDeclaration*)structure->declarations->m_values[i];
-
-            int32_t variableCount = declaration->variables->m_size;
-            for (int j = 0; j < variableCount; j++) {
-                Variable* variable = (Variable*)declaration->variables->m_values[j];
-                // TODO: Implement forward references `struct Node { Node next; }`
-                llvmVariableTypes[m++] = getLLVMVariableType(variable->type);
-            }
-        }
-
-        structure->type->llvmType = LLVMStructTypeInContext(generator->llvmContext,
-            llvmVariableTypes, totalVariables, false);
-        structure->type->llvmDefaultValue = LLVMConstNull(LLVMPointerType(structure->type->llvmType, 0));
-        generateConstructor(generator, structure, llvmVariableTypes, totalVariables);
+        generateStructure(generator, structure);
     }
 }
 
