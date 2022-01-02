@@ -50,8 +50,62 @@ LLVMValueRef generateArray(Generator* generator, ArrayExpression* context) {
     return result;
 }
 
-LLVMValueRef generateObject(Generator* generator, NewExpression* expression) {
-    Type* type = expression->type;
+uint64_t getBaseSize(Type* type) {
+    switch (type->tag) {
+        case TYPE_STRUCTURE: {
+            return -1;
+        }
+
+        case TYPE_ARRAY: {
+            return -1;
+        }
+
+        case TYPE_INTEGER: {
+            return type->integer.size;
+        }
+
+        case TYPE_DECIMAL: {
+            return type->decimal.size;
+        }
+
+        default: {
+            controlError();
+            break;
+        }
+    }
+
+    return -1;
+}
+
+LLVMValueRef generateNewArray(Generator* generator, NewExpression* context) {
+    Type* type = context->type;
+
+    uint64_t baseSize = getBaseSize(type->array.base);
+    // uint64_t dimensions = type->array.dimensions;
+    LLVMValueRef arguments[2];
+    arguments[0] = LLVMConstInt(LLVMInt32TypeInContext(generator->llvmContext),
+        baseSize, false);
+
+    // arguments[1] = LLVMConstInt(LLVMInt64TypeInContext(generator->llvmContext), dimensions, false);
+    if (context->expressions->m_size > 1) {
+        fprintf(stderr, "[error] multidimensional arrays are not supported right now.");
+    }
+
+    for (int32_t i = 0; i < context->expressions->m_size; i++) {
+        Context* expression = context->expressions->m_values[i];
+        arguments[i + 1] = generateExpression(generator, expression);
+    }
+
+    LLVMValueRef raw = LLVMBuildCall(generator->llvmBuilder,
+        generator->llvmAllocateArray, arguments, 2, "");
+    LLVMValueRef result = LLVMBuildPointerCast(generator->llvmBuilder, raw,
+        type->llvmType, "");
+
+    return result;
+}
+
+LLVMValueRef generateObject(Generator* generator, NewExpression* context) {
+    Type* type = context->type;
     Structure* structure = type->structure;
 
     int32_t totalVariables = 0;
@@ -70,9 +124,9 @@ LLVMValueRef generateObject(Generator* generator, NewExpression* expression) {
     /* For each entry in the object intializer, we apply linear search on the declared variables
      * to find the index of the field. A better solution would be to use a hash map.
      */
-    int32_t entryCount = expression->entries->m_size;
+    int32_t entryCount = context->entries->m_size;
     for (int i = 0; i < entryCount; i++) {
-        jtk_Pair_t* pair = (jtk_Pair_t*)expression->entries->m_values[i];
+        jtk_Pair_t* pair = (jtk_Pair_t*)context->entries->m_values[i];
         Token* identifier = (Token*)pair->m_left;
 
         int32_t index = 0;
@@ -118,6 +172,7 @@ LLVMValueRef generateNew(Generator* generator, NewExpression* context) {
     LLVMValueRef result;
     Type* type = context->type;
     if (type->tag == TYPE_ARRAY) {
+        result = generateNewArray(generator, context);
     }
     else {
         result = generateObject(generator, context);
@@ -886,8 +941,15 @@ void generateFunctions(Generator* generator, Module* module) {
 }
 
 LLVMTypeRef getLLVMVariableType(Type* type) {
-    return (type->tag == TYPE_STRUCTURE)?
-    LLVMPointerType(type->llvmType, 0) : type->llvmType;
+    switch (type->tag) {
+        case TYPE_STRUCTURE: {
+            return LLVMPointerType(type->llvmType, 0);
+        }
+
+        default: {
+            return type->llvmType;
+        }
+    }
 }
 
 LLVMValueRef getReferenceToAllocate(Generator* generator) {
@@ -899,6 +961,18 @@ LLVMValueRef getReferenceToAllocate(Generator* generator) {
     LLVMTypeRef llvmFunctionType = LLVMFunctionType(llvmReturnType, llvmParameterTypes, 1, false);
     LLVMValueRef llvmFunction = LLVMAddFunction(generator->llvmModule, "ksAllocate", llvmFunctionType);
     return llvmFunction;
+}
+
+LLVMValueRef getReferenceToAllocateArray(Generator* generator) {
+    LLVMTypeRef returnType = LLVMPointerType(
+        LLVMInt8TypeInContext(generator->llvmContext), 0);
+    LLVMTypeRef parameterTypes[] = {
+        LLVMInt32TypeInContext(generator->llvmContext), // itemSize
+        // LLVMInt64TypeInContext(generator->llvmContext), // dimensions
+        LLVMInt32TypeInContext(generator->llvmContext), // itemCount
+    };
+    LLVMTypeRef functionType = LLVMFunctionType(returnType, parameterTypes, 2, false);
+    return LLVMAddFunction(generator->llvmModule, "ksAllocateArray", functionType);
 }
 
 void generateConstructor(Generator* generator, Structure* structure, LLVMTypeRef* llvmParameterTypes, int parameterCount) {
@@ -983,6 +1057,7 @@ bool generateLLVM(Generator* generator, Module* module, const char* name) {
     generator->llvmModule = llvmModule;
     generator->llvmBuilder = LLVMCreateBuilder();
     generator->llvmAllocate = getReferenceToAllocate(generator);
+    generator->llvmAllocateArray = getReferenceToAllocateArray(generator);
 
     generateStructures(generator, module);
     generateFunctions(generator, module);

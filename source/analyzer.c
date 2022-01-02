@@ -162,6 +162,8 @@ Type* getArrayType(Analyzer* analyzer, Type* base, int32_t dimensions) {
                 type->array.base = base;
                 type->array.component = previous;
                 type->array.dimensions = dimension;
+                // TODO: Initialize structure array types
+                type->llvmType = LLVMPointerType(previous->llvmType, 0);
                 jtk_ArrayList_add(base->arrayTypes, type);
 
                 previous = type;
@@ -1284,7 +1286,8 @@ Type* resolveNew(Analyzer* analyzer, NewExpression* expression) {
         }
     }
     else {
-        result = resolveVariableType(analyzer, variableType);
+        Type* baseType = resolveVariableType(analyzer, variableType);
+        result = getArrayType(analyzer, baseType, variableType->dimensions);
         if (result != NULL) {
             expression->type = result;
         }
