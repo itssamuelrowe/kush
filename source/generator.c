@@ -7,7 +7,7 @@ LLVMValueRef generateNew(Generator* generator, NewExpression* context);
 int32_t getRadix(const uint8_t** text, int32_t* length);
 LLVMValueRef generatePrimary(Generator* generator, void* context, bool token,
     Symbol** symbol, int32_t count);
-LLVMValueRef generateSubscript(Generator* generator, Subscript* context, LLVMValueRef object);
+LLVMValueRef generateSubscript(Generator* generator, Subscript* context, LLVMValueRef object, bool last);
 LLVMValueRef generateFunctionArguments(Generator* generator, Function* function,
     FunctionArguments* context);
 LLVMValueRef generateMemberAccess(Generator* generator, MemberAccess* context,
@@ -315,17 +315,24 @@ LLVMValueRef generatePrimary(Generator* generator, void* context, bool token, Sy
 }
 
 LLVMValueRef generateSubscript(Generator* generator, Subscript* context,
-    LLVMValueRef array) {
+    LLVMValueRef array, bool last) {
     // TODO: Based on previous, call different ksArrayGet* functions.
     LLVMValueRef castedArray = LLVMBuildPointerCast(generator->llvmBuilder, array,
         LLVMPointerType(LLVMInt8TypeInContext(generator->llvmContext), 0), "");
     LLVMValueRef index = generateExpression(generator, (Context*)context->expression);
-    LLVMValueRef arguments[] = {
+    LLVMValueRef result;
+    LLVMValueRef arguments[2] = {
         castedArray,
-        index,
+        index
     };
-    LLVMValueRef result = LLVMBuildCall(generator->llvmBuilder, generator->llvmArrayGet,
-        arguments, 2, "");
+    if (last && generator->validLeftValue) {
+        result = LLVMBuildCall(generator->llvmBuilder, generator->llvmArrayGetPointer,
+            arguments, 2, "");
+    }
+    else {
+        result = LLVMBuildCall(generator->llvmBuilder, generator->llvmArrayGet,
+            arguments, 2, "");
+    }
     return result;
 }
 
@@ -366,7 +373,7 @@ LLVMValueRef generatePostfix(Generator* generator, PostfixExpression* context) {
         Context* postfixPart = context->postfixParts->m_values[i];
         switch (postfixPart->tag) {
             case CONTEXT_SUBSCRIPT: {
-                result = generateSubscript(generator, (Subscript*)postfixPart, result);
+                result = generateSubscript(generator, (Subscript*)postfixPart, result, i + 1 == count);
                 break;
             }
 
@@ -1000,6 +1007,16 @@ LLVMValueRef getReferenceToArrayGet(Generator* generator) {
     return LLVMAddFunction(generator->llvmModule, "ksArrayGetInteger32", functionType);
 }
 
+LLVMValueRef getReferenceToArrayGetPointer(Generator* generator) {
+    LLVMTypeRef returnType = LLVMPointerType(LLVMInt32TypeInContext(generator->llvmContext), 0);
+    LLVMTypeRef parameterTypes[] = {
+        LLVMPointerType(LLVMInt8TypeInContext(generator->llvmContext), 0), // array
+        LLVMInt32TypeInContext(generator->llvmContext), // index
+    };
+    LLVMTypeRef functionType = LLVMFunctionType(returnType, parameterTypes, 2, false);
+    return LLVMAddFunction(generator->llvmModule, "ksArrayGetPointerInteger32", functionType);
+}
+
 void generateConstructor(Generator* generator, Structure* structure, LLVMTypeRef* llvmParameterTypes, int parameterCount) {
     LLVMTypeRef llvmStructure = structure->type->llvmType;
     LLVMTypeRef llvmStructurePtr = LLVMPointerType(llvmStructure, 0);
@@ -1084,6 +1101,7 @@ bool generateLLVM(Generator* generator, Module* module, const char* name) {
     generator->llvmAllocate = getReferenceToAllocate(generator);
     generator->llvmAllocateArray = getReferenceToAllocateArray(generator);
     generator->llvmArrayGet = getReferenceToArrayGet(generator);
+    generator->llvmArrayGetPointer = getReferenceToArrayGetPointer(generator);
 
     generateStructures(generator, module);
     generateFunctions(generator, module);
