@@ -91,6 +91,7 @@ Type* newType(uint8_t tag, bool indexable, bool accessible, bool callable,
     bool allocatable, Token* identifier, LLVMTypeRef llvmType,
     LLVMValueRef llvmDefaultValue);
 void deleteType(Type* type);
+void printType(Type* type);
 
 /*******************************************************************************
  * Primitives                                                                  *

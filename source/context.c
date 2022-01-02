@@ -47,6 +47,41 @@ void deleteType(Type* type) {
     deallocate(type);
 }
 
+const char* typeNames[] = {
+    "structure",
+    "integer",
+    "decimal",
+    "array",
+    "void",
+    "null",
+    "string",
+    "boolean",
+    "function",
+    "unknown"
+};
+
+#define booleanToString(v) v? "true" : "false"
+
+void printType(Type* type) {
+    printf("type=%s, indexable=%s, accessible=%s, callable=%s, reference=%s, identifier=%s",
+        typeNames[type->tag],
+        booleanToString(type->indexable),
+        booleanToString(type->accessible),
+        booleanToString(type->callable),
+        booleanToString(type->reference),
+        type->identifier? type->identifier->text : "<undefined>"
+    );
+
+    switch (type->tag) {
+        case TYPE_ARRAY: {
+            printf(", dimensions=%d\n", type->array.dimensions);
+            break;
+        }
+    }
+
+    printf("\n");
+}
+
 /*******************************************************************************
  * Primitives                                                                  *
  *******************************************************************************/
