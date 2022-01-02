@@ -399,8 +399,20 @@ void deleteFunctionArguments(FunctionArguments* self);
 
 struct Subscript {
     ContextType tag;
+    /**
+     * The token is used when reporting errors, that is, to show the location.
+     */
     Token* bracket;
     BinaryExpression* expression;
+    /**
+     * The type of the expression over which the subscript operator is applied.
+     * For example, in `(Arrays:subarray<i32>(array, 0, 2))[0]` previous would be the
+     * resolved type for `(Arrays:subarray<i32>(array, 0, 2))`, which is `i32[]`.
+     * 
+     * When an instance of `Subscript` is created, this attribute is initialized to `NULL`.
+     * It is updated by the analyzer with an instance of `Type`.
+     */
+    Type* previous;
 };
 
 typedef struct Subscript Subscript;

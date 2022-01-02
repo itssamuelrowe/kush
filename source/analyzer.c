@@ -149,7 +149,7 @@ static Type* resolveExpression(Analyzer* analyzer, Context* context);
 
 Type* getArrayType(Analyzer* analyzer, Type* base, int32_t dimensions) {
     Type* result = base;
-
+    
     if (dimensions > 0) {
         int32_t maxDimensions = jtk_ArrayList_getSize(base->arrayTypes);
         if (dimensions > maxDimensions) {
@@ -473,10 +473,6 @@ Type* resolveVariableType(Analyzer* analyzer, VariableType* variableType) {
             printf("[internal error] Control should not reach here.\n");
             break;
         }
-    }
-
-    if ((variableType->dimensions > 0) && !error) {
-        type = getArrayType(analyzer, type, variableType->dimensions);
     }
 
     return type;
@@ -1038,6 +1034,7 @@ Type* resolveUnary(Analyzer* analyzer, UnaryExpression* expression) {
 
 // TODO: Prevent subscripting more dimensions than what the type allows.
 Type* resolveSubscript(Analyzer* analyzer, Subscript* subscript, Type* previous) {
+    subscript->previous = previous;
     ErrorHandler* handler = analyzer->compiler->errorHandler;
     Type* result = NULL;
     if (!previous->indexable) {
@@ -1051,7 +1048,7 @@ Type* resolveSubscript(Analyzer* analyzer, Subscript* subscript, Type* previous)
                 subscript->bracket);
         }
 
-        result = getArrayType(analyzer, previous->array.base, previous->array.dimensions - 1);
+        result = previous->array.component;
     }
     return result;
 }

@@ -42,6 +42,7 @@ struct Generator {
     bool validLeftValue;
     LLVMValueRef llvmAllocate;
     LLVMValueRef llvmAllocateArray;
+    LLVMValueRef llvmArrayGet;
 };
 
 typedef struct Generator Generator;

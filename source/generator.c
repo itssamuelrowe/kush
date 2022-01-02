@@ -7,7 +7,7 @@ LLVMValueRef generateNew(Generator* generator, NewExpression* context);
 int32_t getRadix(const uint8_t** text, int32_t* length);
 LLVMValueRef generatePrimary(Generator* generator, void* context, bool token,
     Symbol** symbol, int32_t count);
-LLVMValueRef generateSubscript(Generator* generator, Subscript* context);
+LLVMValueRef generateSubscript(Generator* generator, Subscript* context, LLVMValueRef object);
 LLVMValueRef generateFunctionArguments(Generator* generator, Function* function,
     FunctionArguments* context);
 LLVMValueRef generateMemberAccess(Generator* generator, MemberAccess* context,
@@ -314,8 +314,18 @@ LLVMValueRef generatePrimary(Generator* generator, void* context, bool token, Sy
     return result;
 }
 
-LLVMValueRef generateSubscript(Generator* generator, Subscript* context) {
-    LLVMValueRef result;
+LLVMValueRef generateSubscript(Generator* generator, Subscript* context,
+    LLVMValueRef array) {
+    // TODO: Based on previous, call different ksArrayGet* functions.
+    LLVMValueRef castedArray = LLVMBuildPointerCast(generator->llvmBuilder, array,
+        LLVMPointerType(LLVMInt8TypeInContext(generator->llvmContext), 0), "");
+    LLVMValueRef index = generateExpression(generator, (Context*)context->expression);
+    LLVMValueRef arguments[] = {
+        castedArray,
+        index,
+    };
+    LLVMValueRef result = LLVMBuildCall(generator->llvmBuilder, generator->llvmArrayGet,
+        arguments, 2, "");
     return result;
 }
 
@@ -356,11 +366,16 @@ LLVMValueRef generatePostfix(Generator* generator, PostfixExpression* context) {
         Context* postfixPart = context->postfixParts->m_values[i];
         switch (postfixPart->tag) {
             case CONTEXT_SUBSCRIPT: {
-                generateSubscript(generator, (Subscript*)postfixPart);
+                result = generateSubscript(generator, (Subscript*)postfixPart, result);
                 break;
             }
 
             case CONTEXT_FUNCTION_ARGUMENTS: {
+                /* TODO: generateFunctionArguments currently depends on the symbol to invoke the function.
+                 * However, this will not work when function pointers are implemented. Instead it should follow
+                 * the approach used with member access, that is, the previous type should be resolved by the
+                 * analyzer.
+                 */
                 result = generateFunctionArguments(generator, (Function*)symbol, (FunctionArguments*)postfixPart);
                 break;
             }
@@ -975,6 +990,16 @@ LLVMValueRef getReferenceToAllocateArray(Generator* generator) {
     return LLVMAddFunction(generator->llvmModule, "ksAllocateArray", functionType);
 }
 
+LLVMValueRef getReferenceToArrayGet(Generator* generator) {
+    LLVMTypeRef returnType = LLVMInt32TypeInContext(generator->llvmContext);
+    LLVMTypeRef parameterTypes[] = {
+        LLVMPointerType(LLVMInt8TypeInContext(generator->llvmContext), 0), // array
+        LLVMInt32TypeInContext(generator->llvmContext), // index
+    };
+    LLVMTypeRef functionType = LLVMFunctionType(returnType, parameterTypes, 2, false);
+    return LLVMAddFunction(generator->llvmModule, "ksArrayGetInteger32", functionType);
+}
+
 void generateConstructor(Generator* generator, Structure* structure, LLVMTypeRef* llvmParameterTypes, int parameterCount) {
     LLVMTypeRef llvmStructure = structure->type->llvmType;
     LLVMTypeRef llvmStructurePtr = LLVMPointerType(llvmStructure, 0);
@@ -1058,6 +1083,7 @@ bool generateLLVM(Generator* generator, Module* module, const char* name) {
     generator->llvmBuilder = LLVMCreateBuilder();
     generator->llvmAllocate = getReferenceToAllocate(generator);
     generator->llvmAllocateArray = getReferenceToAllocateArray(generator);
+    generator->llvmArrayGet = getReferenceToArrayGet(generator);
 
     generateStructures(generator, module);
     generateFunctions(generator, module);
