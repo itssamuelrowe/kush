@@ -1038,7 +1038,7 @@ Type* resolveSubscript(Analyzer* analyzer, Subscript* subscript, Type* previous)
     ErrorHandler* handler = analyzer->compiler->errorHandler;
     Type* result = NULL;
     if (!previous->indexable) {
-        handleSemanticError(handler, analyzer, ERROR_INVALID_LEFT_OPERAND,
+        handleSemanticError(handler, analyzer, ERROR_NON_INDEXABLE_TYPE,
             subscript->bracket);
     }
     else {
