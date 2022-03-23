@@ -1,5 +1,6 @@
 #include <kush/generator.h>
 #include <jtk/collection/Pair.h>
+#include <jtk/collection/array/Arrays.h>
 
 LLVMValueRef generateArray(Generator* generator, ArrayExpression* context);
 LLVMValueRef generateObject(Generator* generator, NewExpression* expression);
@@ -257,6 +258,17 @@ LLVMValueRef generatePrimary(Generator* generator, void* context, bool token, Sy
                 result = LLVMConstNull(
                     LLVMPointerType(LLVMVoidTypeInContext(generator->llvmContext), 0)
                 );
+                break;
+            }
+
+            case TOKEN_STRING_LITERAL: {
+                // TODO: Call createString()
+                int8_t temporary[token0->length - 1];
+                memcpy(temporary, token0->text + 1, token0->length - 2);
+                temporary[token0->length - 2] = '\0';
+                LLVMValueRef string = LLVMBuildGlobalStringPtr(generator->llvmBuilder, temporary, "");
+                result = LLVMBuildPointerCast(generator->llvmBuilder, string,
+                    LLVMPointerType(LLVMInt8TypeInContext(generator->llvmContext), 0), "");;
                 break;
             }
 
