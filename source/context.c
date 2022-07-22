@@ -75,6 +75,9 @@ void printType(Type* type) {
     switch (type->tag) {
         case TYPE_ARRAY: {
             printf(", dimensions=%d\n", type->array.dimensions);
+            printf("--- base ---\n");
+            printType(type->array.base);
+            printf("---\n");
             break;
         }
     }
