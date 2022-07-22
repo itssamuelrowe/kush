@@ -363,6 +363,28 @@ LLVMValueRef generateFunctionArguments(Generator* generator, Function* function,
 
 LLVMValueRef generateMemberAccess(Generator* generator, MemberAccess* context,
     LLVMValueRef object, bool last) {
+    /* NOTE: We assume that member access for array types will always be ".size", which
+     * is unsafe and completely indefensive.
+     */
+    if (context->previous->tag == TYPE_ARRAY) {
+        LLVMValueRef castedArray = LLVMBuildPointerCast(
+            generator->llvmBuilder,
+            object,
+            LLVMPointerType(LLVMInt8TypeInContext(generator->llvmContext), 0),
+            ""
+        );
+        LLVMValueRef arguments[1] = {
+            castedArray
+        };
+        return LLVMBuildCall(
+            generator->llvmBuilder,
+            generator->llvmArrayGetSize,
+            arguments,
+            1,
+            ""
+        );
+    }
+
     Variable* variable = (Variable*)resolveSymbol(context->previous->structure->scope,
         context->identifier->text);
     LLVMValueRef result = LLVMBuildStructGEP2(generator->llvmBuilder,
@@ -1016,7 +1038,7 @@ LLVMValueRef getReferenceToArrayGet(Generator* generator) {
         LLVMInt32TypeInContext(generator->llvmContext), // index
     };
     LLVMTypeRef functionType = LLVMFunctionType(returnType, parameterTypes, 2, false);
-    return LLVMAddFunction(generator->llvmModule, "ksArrayGetInteger32", functionType);
+    return LLVMAddFunction(generator->llvmModule, "ksArrayGetI32", functionType);
 }
 
 LLVMValueRef getReferenceToArrayGetPointer(Generator* generator) {
@@ -1026,7 +1048,16 @@ LLVMValueRef getReferenceToArrayGetPointer(Generator* generator) {
         LLVMInt32TypeInContext(generator->llvmContext), // index
     };
     LLVMTypeRef functionType = LLVMFunctionType(returnType, parameterTypes, 2, false);
-    return LLVMAddFunction(generator->llvmModule, "ksArrayGetPointerInteger32", functionType);
+    return LLVMAddFunction(generator->llvmModule, "ksArrayGetPointerI32", functionType);
+}
+
+LLVMValueRef getReferenceToArrayGetSize(Generator* generator) {
+    LLVMTypeRef returnType = LLVMInt32TypeInContext(generator->llvmContext);
+    LLVMTypeRef parameterTypes[] = {
+        LLVMPointerType(LLVMInt8TypeInContext(generator->llvmContext), 0), // array
+    };
+    LLVMTypeRef functionType = LLVMFunctionType(returnType, parameterTypes, 1, false);
+    return LLVMAddFunction(generator->llvmModule, "ksArrayGetSize", functionType);
 }
 
 void generateConstructor(Generator* generator, Structure* structure, LLVMTypeRef* llvmParameterTypes, int parameterCount) {
@@ -1114,6 +1145,8 @@ bool generateLLVM(Generator* generator, Module* module, const char* name) {
     generator->llvmAllocateArray = getReferenceToAllocateArray(generator);
     generator->llvmArrayGet = getReferenceToArrayGet(generator);
     generator->llvmArrayGetPointer = getReferenceToArrayGetPointer(generator);
+    generator->llvmArrayGetSize = getReferenceToArrayGetSize(generator);
+
 
     generateStructures(generator, module);
     generateFunctions(generator, module);

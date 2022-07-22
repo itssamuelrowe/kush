@@ -44,6 +44,7 @@ struct Generator {
     LLVMValueRef llvmAllocateArray;
     LLVMValueRef llvmArrayGet;
     LLVMValueRef llvmArrayGetPointer;
+    LLVMValueRef llvmArrayGetSize;
 };
 
 typedef struct Generator Generator;
