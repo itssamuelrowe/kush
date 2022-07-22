@@ -475,7 +475,7 @@ Type* resolveVariableType(Analyzer* analyzer, VariableType* variableType) {
         }
     }
 
-    return type;
+    return getArrayType(analyzer, type, variableType->dimensions);
 }
 
 // TODO: Disallow var and let keywords in structures!
@@ -1283,8 +1283,8 @@ Type* resolveNew(Analyzer* analyzer, NewExpression* expression) {
         }
     }
     else {
-        Type* baseType = resolveVariableType(analyzer, variableType);
-        result = getArrayType(analyzer, baseType, variableType->dimensions);
+        result = resolveVariableType(analyzer, variableType);
+        // TODO: Why are we checking for null here?
         if (result != NULL) {
             expression->type = result;
         }
