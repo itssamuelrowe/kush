@@ -1493,9 +1493,7 @@ void defineBuiltins(Analyzer* analyzer) {
 
     // $String
     Structure* string = addSyntheticStructure(analyzer, "$String", 7);
-    // addSyntheticMember(analyzer, string, true, "size", 4, &primitives.i32);
-    Type* valueType = getArrayType(analyzer, &primitives.ui8, 1);
-    addSyntheticMember(analyzer, string, true, "value", 5, valueType);
+    addSyntheticMember(analyzer, string, true, "size", 4, &primitives.i32);
 
     // print_i
     jtk_ArrayList_t* parameters = jtk_ArrayList_new();
