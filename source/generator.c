@@ -420,6 +420,18 @@ LLVMValueRef generateMemberAccess(Generator* generator, MemberAccess* context,
             ""
         );
     }
+    else if (context->previous->tag == TYPE_STRING) {
+        LLVMValueRef arguments[1] = {
+            object
+        };
+        return LLVMBuildCall(
+            generator->llvmBuilder,
+            generator->llvmStringGetSize,
+            arguments,
+            1,
+            ""
+        );
+    }
 
     Variable* variable = (Variable*)resolveSymbol(context->previous->structure->scope,
         context->identifier->text);
@@ -1096,6 +1108,15 @@ LLVMValueRef getReferenceToArrayGetSize(Generator* generator) {
     return LLVMAddFunction(generator->llvmModule, "ksArrayGetSize", functionType);
 }
 
+LLVMValueRef getReferenceToStringGetSize(Generator* generator) {
+    LLVMTypeRef returnType = LLVMInt32TypeInContext(generator->llvmContext);
+    LLVMTypeRef parameterTypes[] = {
+        LLVMPointerType(LLVMInt8TypeInContext(generator->llvmContext), 0), // string
+    };
+    LLVMTypeRef functionType = LLVMFunctionType(returnType, parameterTypes, 1, false);
+    return LLVMAddFunction(generator->llvmModule, "ksStringGetSize", functionType);
+}
+
 void generateConstructor(Generator* generator, Structure* structure, LLVMTypeRef* llvmParameterTypes, int parameterCount) {
     LLVMTypeRef llvmStructure = structure->type->llvmType;
     LLVMTypeRef llvmStructurePtr = LLVMPointerType(llvmStructure, 0);
@@ -1182,6 +1203,7 @@ bool generateLLVM(Generator* generator, Module* module, const char* name) {
     generator->llvmArrayGet = getReferenceToArrayGet(generator);
     generator->llvmArrayGetPointer = getReferenceToArrayGetPointer(generator);
     generator->llvmArrayGetSize = getReferenceToArrayGetSize(generator);
+    generator->llvmStringGetSize = getReferenceToStringGetSize(generator);
 
 
     generateStructures(generator, module);
