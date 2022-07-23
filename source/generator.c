@@ -262,13 +262,49 @@ LLVMValueRef generatePrimary(Generator* generator, void* context, bool token, Sy
             }
 
             case TOKEN_STRING_LITERAL: {
-                // TODO: Call createString()
-                int8_t temporary[token0->length - 1];
-                memcpy(temporary, token0->text + 1, token0->length - 2);
-                temporary[token0->length - 2] = '\0';
-                LLVMValueRef string = LLVMBuildGlobalStringPtr(generator->llvmBuilder, temporary, "");
-                result = LLVMBuildPointerCast(generator->llvmBuilder, string,
-                    LLVMPointerType(LLVMInt8TypeInContext(generator->llvmContext), 0), "");;
+                int32_t STRING_HEADER_SIZE = 4;
+                int32_t length = token0->length - 2;
+                int32_t totalBytes = STRING_HEADER_SIZE + token0->length - 1;
+                /* NOTE: We don't really need a temporary array. However, it makes code
+                 * generation easy because we navigate through the array generating LLVM
+                 * value refs.
+                 */
+                int8_t temporary[totalBytes];
+                // Alternatively: ((int32_t*)temporary)[0] = length;
+                temporary[0] = (0xFF000000 & length) >> 6;
+                temporary[1] = (0x00FF0000 & length) >> 4;
+                temporary[2] = (0x0000FF00 & length) >> 2;
+                temporary[3] = (0x000000FF & length) >> 0;
+                memcpy(
+                    temporary + STRING_HEADER_SIZE,
+                    token0->text + 1,
+                    length
+                );
+                temporary[length + STRING_HEADER_SIZE] = '\0';
+
+                LLVMValueRef globalArrayBytes[totalBytes];
+                for (int32_t i = 0; i < totalBytes; i++) {
+                    globalArrayBytes[i] = LLVMConstInt(
+                        LLVMInt8TypeInContext(generator->llvmContext),
+                        temporary[i],
+                        true
+                    );
+                }
+
+                LLVMTypeRef globalArrayType = LLVMArrayType(
+                    LLVMInt8TypeInContext(generator->llvmContext),
+                    totalBytes
+                );
+                LLVMValueRef globalArrayInitializer = LLVMConstArray(globalArrayType, globalArrayBytes, totalBytes);
+                LLVMValueRef globalArray = LLVMAddGlobal(generator->llvmModule,
+                    globalArrayType,
+                    ""
+                );
+                LLVMSetGlobalConstant(globalArray, true);
+                LLVMSetInitializer(globalArray, globalArrayInitializer);
+
+                result = LLVMBuildPointerCast(generator->llvmBuilder, globalArray,
+                    LLVMPointerType(LLVMInt8TypeInContext(generator->llvmContext), 0), "");
                 break;
             }
 
