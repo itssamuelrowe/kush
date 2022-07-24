@@ -48,13 +48,13 @@
  *
  * [    type    ][    value    ]
  *  \             \
- *   1 byte        4 or 8 bytes*
+ *   1 byte        8 bytes*
  *
- * The value size changes based on the machine type, that is,
- * 32-bit or 64-bit.
+ * The value size should be wide enough to hold pointers and
+ * `i64` values.
  */
 #define ANY_TYPE_HEADER 1
-#define ANY_TYPE_SIZE (sizeof (void*) + ANY_TYPE_HEADER)
+#define ANY_TYPE_SIZE (8 + ANY_TYPE_HEADER)
 
 typedef struct Type Type;
 typedef struct Structure Structure;
