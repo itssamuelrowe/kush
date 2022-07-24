@@ -183,8 +183,8 @@ bool isInputStart(Lexer* lexer) {
     return (lexer->startLine == 0) && (lexer->startColumn == 0);
 }
 
-void consume(Lexer* lexer) {
-    jtk_StringBuilder_appendCodePoint(lexer->text, lexer->la1);
+void consumeWithReplacement(Lexer* lexer, int32_t replacement) {
+    jtk_StringBuilder_appendCodePoint(lexer->text, replacement);
 
     lexer->index++;
     lexer->column++;
@@ -202,6 +202,10 @@ void consume(Lexer* lexer) {
     else {
         lexer->la1 = jtk_InputStream_read(lexer->inputStream);
     }
+}
+
+void consume(Lexer* lexer) {
+    consumeWithReplacement(lexer, lexer->la1);
 }
 
 void emit(Lexer* lexer, Token* token) {
@@ -1569,7 +1573,7 @@ Token* nextToken(Lexer* lexer) {
             default : {
 
                 /* IDENTIFIER
-                 * :    LETTER LETTER_OR_DIGIT*
+                 * :    LETTER LETTER_OR_DIGIT* (':' LETTER LETTER_OR_DIGIT*)?
                  * ;
                  */
                 if (isIdentifierStart(lexer->la1)) {
@@ -1585,7 +1589,10 @@ Token* nextToken(Lexer* lexer) {
                     }
 
                     if (lexer->la1 == ':') {
-                        consume(lexer);
+                        /* We have encountered a barrier identifier. Therefore, replace ':' with '_' and
+                         * consume it.
+                         */
+                        consumeWithReplacement(lexer, '_');
 
                         if (isIdentifierStart(lexer->la1)) {
                             do {
@@ -1594,6 +1601,9 @@ Token* nextToken(Lexer* lexer) {
                             while (isIdentifierPart(lexer->la1));
                         }
                         else {
+                            /* TODO: Update the lexer to generate two different tokens when `<id>:<unknown>`
+                             * sequence is encountered.
+                             */
                             lexer->errorCode = ERROR_EXPECTED_LETTER_AFTER_COLON;
                             consume(lexer);
                         }
