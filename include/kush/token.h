@@ -109,6 +109,7 @@ enum TokenType {
 
     /* Keywords */
 
+    TOKEN_KEYWORD_ANY,
     TOKEN_KEYWORD_BOOLEAN,
     TOKEN_KEYWORD_BREAK,
     TOKEN_KEYWORD_CATCH,

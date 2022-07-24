@@ -1625,6 +1625,13 @@ Token* nextToken(Lexer* lexer) {
                      */
                     lexer->type = TOKEN_IDENTIFIER;
                     switch (text[0]) {
+                        case 'a': {
+                            if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_ANY], 3)) {
+                                lexer->type = TOKEN_KEYWORD_ANY;
+                            }
+                            break;
+                        }
+
                         case 'b' : {
                             if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_BOOLEAN], 7)) {
                                 lexer->type = TOKEN_KEYWORD_BOOLEAN;

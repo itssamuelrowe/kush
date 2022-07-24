@@ -99,6 +99,7 @@ char tokenNames[][25] = {
 
     "<identifier>",
 
+    "any",
     "boolean",
     "break",
     "catch",
