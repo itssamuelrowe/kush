@@ -312,7 +312,7 @@ void buildAST(Compiler* compiler) {
                     compiler->modules[i] = module;
 
                     if (compiler->dumpNodes) {
-                        // TODO
+                        printf("[info] The `--nodes` flag is currently not implemented.\n");
                     }
                 }
             }
@@ -558,7 +558,11 @@ bool compileEx(Compiler* compiler, char** arguments, int32_t length) {
             initializePrimitives(compiler->llvmContext);
             initialize(compiler);
             buildAST(compiler);
-            if (!compiler->dumpTokens && (noErrors = (compiler->errorHandler->errors->m_size == 0))) {
+            noErrors = compiler->errorHandler->errors->m_size == 0;
+
+            if (!compiler->dumpTokens &&
+                !compiler->dumpNodes &&
+                noErrors) {
                 analyze(compiler);
 
                 if (jtk_ArrayList_isEmpty(compiler->errorHandler->errors)) {
