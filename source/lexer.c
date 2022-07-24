@@ -1729,7 +1729,7 @@ Token* nextToken(Lexer* lexer) {
                         break;
                     }
                     case 'u' : {
-												if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_UI16], 4)) {
+						if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_UI16], 4)) {
                             lexer->type = TOKEN_KEYWORD_UI16;
                         }
                         else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_UI32], 4)) {
@@ -1754,10 +1754,7 @@ Token* nextToken(Lexer* lexer) {
                         break;
                     }
                     case 'w' : {
-                        if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_WITH], 4)) {
-                            lexer->type = TOKEN_KEYWORD_WITH;
-                        }
-                        else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_WHILE], 5)) {
+                        if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_WHILE], 5)) {
                             lexer->type = TOKEN_KEYWORD_WHILE;
                         }
                         break;

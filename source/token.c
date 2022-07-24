@@ -131,7 +131,6 @@ char tokenNames[][25] = {
     "ui8",
     "var",
     "void",
-    "with",
     "while",
 
     "<integer_literal>",
