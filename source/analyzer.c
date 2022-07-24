@@ -470,7 +470,7 @@ Type* resolveVariableType(Analyzer* analyzer, VariableType* variableType) {
         }
 
         default: {
-            printf("[internal error] Control should not reach here.\n");
+            controlError();
             break;
         }
     }
@@ -1025,7 +1025,7 @@ Type* resolveUnary(Analyzer* analyzer, UnaryExpression* expression) {
             }
         }
         else {
-            printf("[internal error] Control should not reach here.\n");
+            controlError();
         }
     }
 
@@ -1232,7 +1232,7 @@ Type* resolveToken(Analyzer* analyzer, Token* token) {
         }
 
         default: {
-            printf("[internal error] Control should not reach here.\n");
+            controlError();
         }
     }
     return result;
