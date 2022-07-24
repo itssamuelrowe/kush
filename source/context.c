@@ -57,6 +57,7 @@ const char* typeNames[] = {
     "string",
     "boolean",
     "function",
+    "any",
     "unknown"
 };
 
@@ -90,6 +91,16 @@ void printType(Type* type) {
  *******************************************************************************/
 
 Primitives primitives = {
+    .any = {
+        .tag = TYPE_ANY,
+        .indexable = false,
+        .accessible = false,
+        .callable = false,
+        .reference = false,
+        .identifier = NULL,
+        .arrayTypes = NULL,
+    },
+
     .boolean = {
         .tag = TYPE_BOOLEAN,
         .indexable = false,
@@ -268,7 +279,7 @@ Primitives primitives = {
     },
 
     .unknown = {
-        .tag = TYPE_UNKONWN,
+        .tag = TYPE_UNKNOWN,
         .indexable = false,
         .accessible = false,
         .callable = false,
@@ -278,7 +289,14 @@ Primitives primitives = {
     }
 };
 
+/* NOTE: Some primitive types do not have `llvmDefaultValue` initialized. */
 void initializePrimitives(LLVMContextRef llvmContext) {
+    primitives.any.arrayTypes = jtk_ArrayList_new();
+    primitives.any.llvmType = LLVMArrayType(
+        LLVMInt8TypeInContext(llvmContext),
+        ANY_TYPE_SIZE
+    );
+
     primitives.boolean.arrayTypes = jtk_ArrayList_new();
     primitives.boolean.llvmType = LLVMInt1TypeInContext(llvmContext);
     primitives.boolean.llvmDefaultValue = LLVMConstInt(primitives.boolean.llvmType, 0, false);

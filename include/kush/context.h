@@ -29,6 +29,9 @@
  * Type                                                                        *
  *******************************************************************************/
 
+/* NOTE: The following constants are used as array index.
+ * Therefore, ensure they are always sequential.
+ */
 #define TYPE_STRUCTURE 0
 #define TYPE_INTEGER 1
 #define TYPE_DECIMAL 2
@@ -38,7 +41,20 @@
 #define TYPE_STRING 6
 #define TYPE_BOOLEAN 7
 #define TYPE_FUNCTION 8
-#define TYPE_UNKONWN 9
+#define TYPE_ANY 9
+#define TYPE_UNKNOWN 10
+
+/* Variable layout for `any` type:
+ *
+ * [    type    ][    value    ]
+ *  \             \
+ *   1 byte        4 or 8 bytes*
+ *
+ * The value size changes based on the machine type, that is,
+ * 32-bit or 64-bit.
+ */
+#define ANY_TYPE_HEADER 1
+#define ANY_TYPE_SIZE (sizeof (void*) + ANY_TYPE_HEADER)
 
 typedef struct Type Type;
 typedef struct Structure Structure;
@@ -98,6 +114,7 @@ void printType(Type* type);
  *******************************************************************************/
 
 struct Primitives {
+    Type any;
     Type boolean;
     Type i8;
     Type i16;

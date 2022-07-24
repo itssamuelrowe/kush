@@ -143,7 +143,17 @@ static Type* resolveExpression(Analyzer* analyzer, Context* context);
  * Albeit expected and actual are both instances of Type, the arguments cannot
  * be interchanged.
  */
-#define isTypeMatch(expected, actual) ((expected == actual) || (expected->reference && (actual->tag == TYPE_NULL)))
+bool isTypeMatch(Type* expected, Type* actual) {
+    if (expected->reference) {
+        return expected == actual ||
+            actual->tag == TYPE_NULL;
+    }
+
+    // TODO: implement the type compatibility table here.
+
+    return ((expected->tag == actual->tag) ||
+        (expected->tag == TYPE_ANY));
+};
 
 // Array Type
 
@@ -386,6 +396,11 @@ Type* resolveVariableType(Analyzer* analyzer, VariableType* variableType) {
     Type* type = NULL;
     bool error = false;
     switch (token->type) {
+        case TOKEN_KEYWORD_ANY: {
+            type = &primitives.any;
+            break;
+        }
+
         case TOKEN_KEYWORD_BOOLEAN: {
            type = &primitives.boolean;
            break;
