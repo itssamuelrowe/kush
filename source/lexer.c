@@ -1625,150 +1625,153 @@ Token* nextToken(Lexer* lexer) {
                      */
                     lexer->type = TOKEN_IDENTIFIER;
                     switch (text[0]) {
-                    case 'b' : {
-                        if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_BOOLEAN], 7)) {
-                            lexer->type = TOKEN_KEYWORD_BOOLEAN;
+                        case 'b' : {
+                            if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_BOOLEAN], 7)) {
+                                lexer->type = TOKEN_KEYWORD_BOOLEAN;
+                            }
+                            else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_BREAK], 5)) {
+                                lexer->type = TOKEN_KEYWORD_BREAK;
+                            }
+                            break;
                         }
-                        else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_BREAK], 5)) {
-                            lexer->type = TOKEN_KEYWORD_BREAK;
-                        }
-                        break;
-                    }
 
-                    case 'c': {
-                        if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_CATCH], 5)) {
-                            lexer->type = TOKEN_KEYWORD_CATCH;
+                        case 'c': {
+                            if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_CATCH], 5)) {
+                                lexer->type = TOKEN_KEYWORD_CATCH;
+                            }
+                            break;
                         }
-                        break;
-                    }
 
-                    case 'e' : {
-                        if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_ELSE], 4)) {
-                            lexer->type = TOKEN_KEYWORD_ELSE;
+                        case 'e' : {
+                            if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_ELSE], 4)) {
+                                lexer->type = TOKEN_KEYWORD_ELSE;
+                            }
+                            break;
                         }
-                        break;
-                    }
 
-                    case 'f' : {
-                        if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_F32], 3)) {
-                            lexer->type = TOKEN_KEYWORD_F32;
+                        case 'f' : {
+                            if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_F32], 3)) {
+                                lexer->type = TOKEN_KEYWORD_F32;
+                            }
+                            else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_F64], 3)) {
+                                lexer->type = TOKEN_KEYWORD_F64;
+                            }
+                            else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_FALSE], 5)) {
+                                lexer->type = TOKEN_KEYWORD_FALSE;
+                            }
+                            else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_FINALLY], 7)) {
+                                lexer->type = TOKEN_KEYWORD_FINALLY;
+                            }
+                            else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_FOR], 3)) {
+                                lexer->type = TOKEN_KEYWORD_FOR;
+                            }
+                            break;
                         }
-                        else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_F64], 3)) {
-                            lexer->type = TOKEN_KEYWORD_F64;
-                        }
-                        else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_FALSE], 5)) {
-                            lexer->type = TOKEN_KEYWORD_FALSE;
-                        }
-                        else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_FINALLY], 7)) {
-                            lexer->type = TOKEN_KEYWORD_FINALLY;
-                        }
-                        else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_FOR], 3)) {
-                            lexer->type = TOKEN_KEYWORD_FOR;
-                        }
-                        break;
-                    }
 
-                    case 'i' : {
-                        if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_I16], 3)) {
-                            lexer->type = TOKEN_KEYWORD_I16;
+                        case 'i' : {
+                            if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_I16], 3)) {
+                                lexer->type = TOKEN_KEYWORD_I16;
+                            }
+                            else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_I32], 3)) {
+                                lexer->type = TOKEN_KEYWORD_I32;
+                            }
+                            else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_I64], 3)) {
+                                lexer->type = TOKEN_KEYWORD_I64;
+                            }
+                            else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_I8], 2)) {
+                                lexer->type = TOKEN_KEYWORD_I8;
+                            }
+                            else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_IF], 2)) {
+                                lexer->type = TOKEN_KEYWORD_IF;
+                            }
+                            else if (jtk_CString_equals(text, length, tokenNames[TOKEN_KEYWORD_IMPORT], 6)) {
+                                lexer->type = TOKEN_KEYWORD_IMPORT;
+                            }
+                            break;
                         }
-                        else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_I32], 3)) {
-                            lexer->type = TOKEN_KEYWORD_I32;
-                        }
-                        else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_I64], 3)) {
-                            lexer->type = TOKEN_KEYWORD_I64;
-                        }
-                        else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_I8], 2)) {
-                            lexer->type = TOKEN_KEYWORD_I8;
-                        }
-                        else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_IF], 2)) {
-                            lexer->type = TOKEN_KEYWORD_IF;
-                        }
-                        else if (jtk_CString_equals(text, length, tokenNames[TOKEN_KEYWORD_IMPORT], 6)) {
-                            lexer->type = TOKEN_KEYWORD_IMPORT;
-                        }
-                        break;
-                    }
 
-                    case 'l' : {
-                        if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_LET], 3)) {
-                            lexer->type = TOKEN_KEYWORD_LET;
+                        case 'l' : {
+                            if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_LET], 3)) {
+                                lexer->type = TOKEN_KEYWORD_LET;
+                            }
+                            break;
                         }
-                        break;
-                    }
-                    case 'n' : {
-                        if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_NATIVE], 6)) {
-                            lexer->type = TOKEN_KEYWORD_NATIVE;
-                        }
-                        else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_NEW], 3)) {
-                            lexer->type = TOKEN_KEYWORD_NEW;
-                        }
-                        else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_NULL], 4)) {
-                            lexer->type = TOKEN_KEYWORD_NULL;
-                        }
-                        break;
-                    }
-                    case 'r' : {
-                        if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_RETURN], 6)) {
-                            lexer->type = TOKEN_KEYWORD_RETURN;
-                        }
-                        break;
-                    }
-                    case 's' : {
-                        if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_STRUCT], 6)) {
-                            lexer->type = TOKEN_KEYWORD_STRUCT;
-                        }
-                        else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_STRING], 6)) {
-                            lexer->type = TOKEN_KEYWORD_STRING;
-                        }
-                        break;
-                    }
-                    case 't' : {
-                        if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_THIS], 4)) {
-                            lexer->type = TOKEN_KEYWORD_THIS;
-                        }
-                        else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_THROW], 5)) {
-                            lexer->type = TOKEN_KEYWORD_THROW;
-                        }
-                        else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_TRUE], 4)) {
-                            lexer->type = TOKEN_KEYWORD_TRUE;
-                        }
-                        else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_TRY], 3)) {
-                            lexer->type = TOKEN_KEYWORD_TRY;
-                        }
-                        break;
-                    }
-                    case 'u' : {
-						if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_UI16], 4)) {
-                            lexer->type = TOKEN_KEYWORD_UI16;
-                        }
-                        else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_UI32], 4)) {
-                            lexer->type = TOKEN_KEYWORD_UI32;
-                        }
-                        else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_UI64], 4)) {
-                            lexer->type = TOKEN_KEYWORD_UI64;
-                        }
-                        else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_UI8], 3)) {
-                            lexer->type = TOKEN_KEYWORD_UI8;
-                        }
-                        break;
 
-										}
-                    case 'v' : {
-                        if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_VAR], 3)) {
-                            lexer->type = TOKEN_KEYWORD_VAR;
+                        case 'n' : {
+                            if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_NEW], 3)) {
+                                lexer->type = TOKEN_KEYWORD_NEW;
+                            }
+                            else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_NULL], 4)) {
+                                lexer->type = TOKEN_KEYWORD_NULL;
+                            }
+                            break;
                         }
-                        else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_VOID], 4)) {
-                            lexer->type = TOKEN_KEYWORD_VOID;
+
+                        case 'r' : {
+                            if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_RETURN], 6)) {
+                                lexer->type = TOKEN_KEYWORD_RETURN;
+                            }
+                            break;
                         }
-                        break;
-                    }
-                    case 'w' : {
-                        if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_WHILE], 5)) {
-                            lexer->type = TOKEN_KEYWORD_WHILE;
+
+                        case 's' : {
+                            if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_STRUCT], 6)) {
+                                lexer->type = TOKEN_KEYWORD_STRUCT;
+                            }
+                            else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_STRING], 6)) {
+                                lexer->type = TOKEN_KEYWORD_STRING;
+                            }
+                            break;
                         }
-                        break;
-                    }
+
+                        case 't' : {
+                            if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_THIS], 4)) {
+                                lexer->type = TOKEN_KEYWORD_THIS;
+                            }
+                            else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_THROW], 5)) {
+                                lexer->type = TOKEN_KEYWORD_THROW;
+                            }
+                            else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_TRUE], 4)) {
+                                lexer->type = TOKEN_KEYWORD_TRUE;
+                            }
+                            else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_TRY], 3)) {
+                                lexer->type = TOKEN_KEYWORD_TRY;
+                            }
+                            break;
+                        }
+
+                        case 'u' : {
+                            if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_UI16], 4)) {
+                                lexer->type = TOKEN_KEYWORD_UI16;
+                            }
+                            else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_UI32], 4)) {
+                                lexer->type = TOKEN_KEYWORD_UI32;
+                            }
+                            else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_UI64], 4)) {
+                                lexer->type = TOKEN_KEYWORD_UI64;
+                            }
+                            else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_UI8], 3)) {
+                                lexer->type = TOKEN_KEYWORD_UI8;
+                            }
+                            break;
+                        }
+
+                        case 'v' : {
+                            if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_VAR], 3)) {
+                                lexer->type = TOKEN_KEYWORD_VAR;
+                            }
+                            else if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_VOID], 4)) {
+                                lexer->type = TOKEN_KEYWORD_VOID;
+                            }
+                            break;
+                        }
+
+                        case 'w' : {
+                            if (jtk_CString_equals(text, length, tokenNames[(int32_t)TOKEN_KEYWORD_WHILE], 5)) {
+                                lexer->type = TOKEN_KEYWORD_WHILE;
+                            }
+                            break;
+                        }
                     }
 
                     /* Destroy the text; not required anymore. */

@@ -10,7 +10,6 @@
  *******************************************************************************/
 
 #define hasSynthetic(modifiers) (modifiers & KUSH_MODIFIER_SYNTHETIC) != 0
-#define hasNative(modifiers) (modifiers & KUSH_MODIFIER_NATIVE) != 0
 #define hasVariableParameter(modifiers) (modifiers & KUSH_MODIFIER_VARIABLE_PARAMETER)
 
 /**
@@ -28,7 +27,6 @@ struct Module {
 	k_Structure_t** structures;
 	uint16_t functionCount;
 	k_Function_t** functions;
-
 };
 
 typedef struct Module Module;

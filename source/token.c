@@ -115,7 +115,6 @@ char tokenNames[][25] = {
     "if",
     "import",
     "let",
-    "native",
     "new",
     "null",
     "return",
@@ -170,36 +169,4 @@ void deleteToken(Token* token) {
     jtk_Assert_assertObject(token, "The specified token is null.");
     jtk_CString_delete(token->text);
     deallocate(token);
-}
-
-/*******************************************************************************
- * TokenType                                                                   *
- *******************************************************************************/
-
-// Modifiers
-
-uint32_t k_TokenType_toModifiers(TokenType type) {
-    uint32_t modifiers = 0;
-    switch (type) {
-    case TOKEN_KEYWORD_NATIVE: {
-        // modifiers |= KUSH_MODIFIER_NATIVE;
-        break;
-    }
-    }
-    return modifiers;
-}
-
-// Assignment Operator
-
-bool k_TokenType_isAssignmentOperator(TokenType type) {
-    return (type == TOKEN_EQUAL) ||
-           (type == TOKEN_MODULUS_EQUAL) ||
-           (type == TOKEN_AMPERSAND_EQUAL) ||
-           (type == TOKEN_ASTERISK_EQUAL) ||
-           (type == TOKEN_PLUS_EQUAL) ||
-           (type == TOKEN_DASH_EQUAL) ||
-           (type == TOKEN_LEFT_ANGLE_BRACKET_2_EQUAL) ||
-           (type == TOKEN_LEFT_ANGLE_BRACKET_2_EQUAL) ||
-           (type == TOKEN_RIGHT_ANGLE_BRACKET_2_EQUAL) ||
-           (type == TOKEN_VERTICAL_BAR_EQUAL);
 }
