@@ -395,6 +395,7 @@ Token* matchAndYield(Parser* parser, TokenType type) {
 
 // TODO: Add the string keyword.
 #define isType(token) \
+    (token == TOKEN_KEYWORD_ANY) || \
     (token == TOKEN_KEYWORD_BOOLEAN) || \
     (token == TOKEN_KEYWORD_I8) || \
     (token == TOKEN_KEYWORD_I16) || \
@@ -676,6 +677,7 @@ ImportDeclaration* parseImportDeclaration(Parser* parser) {
 VariableType* parseTypeEx(Parser* parser, bool includeVoid) {
     static const TokenType tokens[] = {
         TOKEN_IDENTIFIER,
+        TOKEN_KEYWORD_ANY,
         TOKEN_KEYWORD_BOOLEAN,
         TOKEN_KEYWORD_I8,
         TOKEN_KEYWORD_I16,
@@ -706,10 +708,17 @@ VariableType* parseTypeEx(Parser* parser, bool includeVoid) {
 
 /**
  * componentType
- * :    'i8'
+ * :    IDENTIFIER
+ * |    'any'
+ * |    'boolean'
+ * |    'i8'
  * |    'i16'
  * |    'i32'
  * |    'i64'
+ * |    'ui8'
+ * |    'ui16'
+ * |    'ui32'
+ * |    'ui64'
  * |    'f32'
  * |    'f64'
  * |    'boolean'
@@ -875,6 +884,7 @@ Block* parseBlock(Parser* parser) {
 }
 
 #define isPrimitiveType(token) \
+    (token == TOKEN_KEYWORD_ANY) || \
     (token == TOKEN_KEYWORD_BOOLEAN) || \
     (token == TOKEN_KEYWORD_I8) || \
     (token == TOKEN_KEYWORD_I16) || \
