@@ -37,3 +37,26 @@ int32_t ksStringGetSize(const uint8_t* string) {
       string[2] << 2 |
       string[3] << 0);
 }
+
+int32_t ksStringGet(const uint8_t* value, int32_t index) {
+   return ksToCString(value)[index];
+}
+
+const uint8_t types[12][15] = {
+   { 0, 0, 0, 9, 's', 't', 'r', 'u', 'c', 't', 'u', 'r', 'e', '\0' },
+   { 0, 0, 0, 7, 'i', 'n', 't', 'e', 'g', 'e', 'r', '\0' },
+   { 0, 0, 0, 7, 'd', 'e', 'c', 'i', 'm', 'a', 'l', '\0' },
+   { 0, 0, 0, 5, 'a', 'r', 'r', 'a', 'y', '\0' },
+   { 0, 0, 0, 4, 'v', 'o', 'i', 'd', '\0' },
+   { 0, 0, 0, 4, 'n', 'u', 'l', 'l', '\0' },
+   { 0, 0, 0, 6, 's', 't', 'r', 'i', 'n', 'g', '\0' },
+   { 0, 0, 0, 7, 'b', 'o', 'o', 'l', 'e', 'a', 'n', '\0' },
+   { 0, 0, 0, 8, 'f', 'u', 'n', 'c', 't', 'i', 'o', 'n', '\0' },
+   { 0, 0, 0, 3, 'a', 'n', 'y', '\0' },
+   { 0, 0, 0, 7, 'u', 'n', 'k', 'n', 'o', 'w', 'n', '\0' }
+};
+
+const uint8_t* type(__int128_t parts) {
+   int32_t part = (int32_t)(parts >> 64);
+   return types[part];
+}
