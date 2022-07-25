@@ -819,6 +819,49 @@ LLVMValueRef generateConditional(Generator* generator, ConditionalExpression* co
     return result;
 }
 
+LLVMValueRef generateAnyAssignment(
+    Generator* generator,
+    Type* leftType,
+    Type* rightType,
+    LLVMValueRef rhs) {
+    if (leftType->tag == TYPE_ANY) {
+        /* Generate instructions for the following logic:
+         * ```
+         * ((i72)tag) << 64 | (i72)rhs
+         * ```
+         */
+        LLVMValueRef valuePart = LLVMBuildZExt(
+            generator->llvmBuilder,
+            rhs,
+            LLVMInt128TypeInContext(generator->llvmContext),
+            ""
+        );
+        LLVMValueRef tagPart = LLVMBuildShl(
+            generator->llvmBuilder,
+            LLVMConstInt(
+                LLVMInt128TypeInContext(generator->llvmContext),
+                rightType->tag,
+                true
+            ),
+            LLVMConstInt(
+                LLVMInt128TypeInContext(generator->llvmContext),
+                64,
+                true
+            ),
+            ""
+        );
+        rhs = 
+            LLVMBuildOr(
+                generator->llvmBuilder,
+                valuePart,
+                tagPart,
+                ""
+            );
+    }
+
+    return rhs;
+}
+
 LLVMValueRef generateAssignment(Generator* generator, BinaryExpression* context) {
     LLVMValueRef lhs;
     bool previousVLV = generator->validLeftValue;
@@ -828,12 +871,25 @@ LLVMValueRef generateAssignment(Generator* generator, BinaryExpression* context)
         generator->validLeftValue = false;
         jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[count - 1];
         LLVMValueRef rhs = generateConditional(generator, (Context*)pair->m_right);
+        Type* rightType = ((ConditionalExpression*)pair->m_right)->type;
+
+        if (count == 1) {
+            Type* leftType = ((ConditionalExpression*)context->left)->type;
+            rhs = generateAnyAssignment(generator, leftType, rightType, rhs);
+        }
 
         generator->validLeftValue = true;
         for (int i = count - 2; i >= 0; i--) {
             jtk_Pair_t* pair = (jtk_Pair_t*)context->others->m_values[i];
             LLVMValueRef current = generateConditional(generator, (Context*)pair->m_right);
+
+            ConditionalExpression* leftExpr = (ConditionalExpression*)pair->m_right;
+            Type* leftType = leftExpr->type;
+
+            rhs = generateAnyAssignment(generator, leftType, rightType, rhs);
             rhs = LLVMBuildStore(generator->llvmBuilder, rhs, current);
+
+            rightType = leftType;
         }
 
         lhs = generateConditional(generator, context->left);
@@ -863,7 +919,21 @@ void generateVariableDeclaration(Generator* generator, VariableDeclaration* cont
         LLVMValueRef rhs = (variable->expression != NULL)?
             generateExpression(generator, (Context*)variable->expression) :
             variable->type->llvmDefaultValue;
-        LLVMBuildStore(generator->llvmBuilder, rhs, variable->llvmValue);
+
+        LLVMValueRef lhs = variable->llvmValue;
+        // TODO: default values for any variables        
+        if (variable->expression != NULL) {
+            if (variable->type->tag == TYPE_ANY) {
+                rhs = generateAnyAssignment(
+                    generator,
+                    variable->type,
+                    ((BinaryExpression*)variable->expression)->type,
+                    rhs
+                );
+            }
+        }
+
+        LLVMBuildStore(generator->llvmBuilder, rhs, lhs);
     }
 }
 

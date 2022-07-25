@@ -1410,6 +1410,8 @@ BinaryExpression* parseExpression(Parser* parser) {
  * :	conditionalExpression (assignmentOperator conditionalExpression)*
  * ;
  */
+// TODO: assignment expression should get its own context type because
+// its children are of type conditional expression, not binary expression!
 BinaryExpression* parseAssignmentExpression(Parser* parser) {
     BinaryExpression* context = newBinaryExpression(CONTEXT_ASSIGNMENT_EXPRESSION);
 
