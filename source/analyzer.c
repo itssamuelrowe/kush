@@ -1106,7 +1106,7 @@ Type* resolveFunctionArguments(Analyzer* analyzer, FunctionArguments* arguments,
                         arguments->expressions, j);
                     Type* argumentType = resolveExpression(analyzer, (Context*)argument);
                     Variable* parameter = (Variable*)jtk_ArrayList_getValue(function->parameters, j);
-                    if (!isTypeMatch(argumentType, parameter->type)) {
+                    if (!isTypeMatch(parameter->type, argumentType)) {
                         handleSemanticError(handler, analyzer, ERROR_INCOMPATIBLE_ARGUMENT_TYPE,
                             arguments->parenthesis);
                         /* Since the error message points to the parenthesis, there is
