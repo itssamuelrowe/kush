@@ -48,12 +48,12 @@
  *
  * [    type    ][    value    ]
  *  \             \
- *   1 byte        8 bytes*
+ *   8 bytes       8 bytes*
  *
  * The value size should be wide enough to hold pointers and
  * `i64` values.
  */
-#define ANY_TYPE_HEADER 1
+#define ANY_TYPE_HEADER 8
 #define ANY_TYPE_SIZE (8 + ANY_TYPE_HEADER)
 
 typedef struct Type Type;
@@ -288,10 +288,12 @@ void deleteImportDeclaration(ImportDeclaration* self);
 
 typedef struct BinaryExpression BinaryExpression;
 
+// TODO: Set resultType to NULL in new*().
 struct BinaryExpression {
     ContextType tag;
     BinaryExpression* left;
     jtk_ArrayList_t* others;
+    Type* type;
 };
 
 BinaryExpression* newBinaryExpression(ContextType tag);
@@ -309,6 +311,7 @@ struct ConditionalExpression {
     BinaryExpression* condition;
     BinaryExpression* then;
     ConditionalExpression* otherwise;
+    Type* type;
 };
 
 ConditionalExpression* newConditionalExpression();
