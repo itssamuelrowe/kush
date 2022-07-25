@@ -763,13 +763,15 @@ Type* resolveAssignment(Analyzer* analyzer, BinaryExpression* expression) {
         for (i = 0; i < count; i++) {
             jtk_Pair_t* pair = (jtk_Pair_t*)jtk_ArrayList_getValue(expression->others, i);
             Type* rightType = resolveExpression(analyzer, (Context*)pair->m_right);
-
+            
             if ((rightType != NULL) && !isTypeMatch(result, rightType)) {
                 handleSemanticError(handler, analyzer, ERROR_INCOMPATIBLE_OPERAND_TYPES,
                     (Token*)pair->m_left);
             }
         }
     }
+
+    expression->type = result;
 
     return result;
 }
@@ -792,6 +794,7 @@ Type* resolveConditional(Analyzer* analyzer, ConditionalExpression* expression) 
 
         result = NULL;
         if ((thenType != NULL) && (elseType != NULL)) {
+            // TODO: Update type matching logic
             if (thenType != elseType) {
                 handleSemanticError(handler, analyzer, ERROR_INCOMPATIBLE_OPERAND_TYPES,
                     expression->hook);
@@ -801,6 +804,8 @@ Type* resolveConditional(Analyzer* analyzer, ConditionalExpression* expression) 
             }
         }
     }
+
+    expression->type = result;
 
     return result;
 }
