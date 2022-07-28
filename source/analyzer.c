@@ -843,6 +843,8 @@ Type* resolveLogical(Analyzer* analyzer, BinaryExpression* expression) {
         }
     }
 
+    expression->type = result;
+
     return result;
 }
 
@@ -884,6 +886,8 @@ Type* resolveBitwise(Analyzer* analyzer, BinaryExpression* expression) {
         }
     }
 
+    expression->type = result;
+
     return result;
 }
 
@@ -910,6 +914,8 @@ Type* resolveEquality(Analyzer* analyzer, BinaryExpression* expression) {
             }
         }
     }
+
+    expression->type = result;
 
     return result;
 }
@@ -948,6 +954,8 @@ Type* resolveRelational(Analyzer* analyzer, BinaryExpression* expression) {
         }
     }
 
+    expression->type = result;
+
     return result;
 }
 
@@ -978,6 +986,8 @@ Type* resolveShift(Analyzer* analyzer, BinaryExpression* expression) {
             }
         }
     }
+
+    expression->type = result;
 
     return result;
 }
@@ -1019,6 +1029,8 @@ Type* resolveArithmetic(Analyzer* analyzer, BinaryExpression* expression) {
         }
     }
 
+    expression->type = result;
+
     return result;
 }
 
@@ -1049,6 +1061,8 @@ Type* resolveUnary(Analyzer* analyzer, UnaryExpression* expression) {
         }
     }
 
+    expression->type = result;
+
     return result;
 }
 
@@ -1070,6 +1084,9 @@ Type* resolveSubscript(Analyzer* analyzer, Subscript* subscript, Type* previous)
 
         result = previous->array.component;
     }
+
+    subscript->type = result;
+
     return result;
 }
 
@@ -1122,6 +1139,9 @@ Type* resolveFunctionArguments(Analyzer* analyzer, FunctionArguments* arguments,
             controlError();
         }
     }
+
+    arguments->type = result;
+
     return result;
 }
 
@@ -1166,6 +1186,9 @@ Type* resolveMemberAccess(Analyzer* analyzer, MemberAccess* access, Type* previo
             printf("[internal error] This is a valid condition (for example, `array.length`). However, it is yet to be implemented.\n");
         }
     }
+
+    access->type = result;
+
     return result;
 }
 
@@ -1196,6 +1219,8 @@ Type* resolvePostfix(Analyzer* analyzer, PostfixExpression* expression) {
             break;
         }
     }
+
+    expression->type = result;
 
     return result;
 }
@@ -1304,10 +1329,6 @@ Type* resolveNew(Analyzer* analyzer, NewExpression* expression) {
     }
     else {
         result = resolveVariableType(analyzer, variableType);
-        // TODO: Why are we checking for null here?
-        if (result != NULL) {
-            expression->type = result;
-        }
         /* It does not matter if there are errors within the square brackets. */
         int32_t limit = jtk_ArrayList_getSize(expression->entries);
         int32_t i;
@@ -1321,6 +1342,8 @@ Type* resolveNew(Analyzer* analyzer, NewExpression* expression) {
             }
         }
     }
+
+    expression->type = result;
 
     return result;
 }

@@ -407,6 +407,7 @@ BinaryExpression* newBinaryExpression(ContextType tag) {
     result->tag = tag;
     result->left =  NULL;
     result->others = jtk_ArrayList_new();
+    result->type = NULL;
     return result;
 }
 
@@ -426,6 +427,7 @@ ConditionalExpression* newConditionalExpression() {
     result->condition = NULL;
     result->then = NULL;
     result->otherwise = NULL;
+    result->type = NULL;
 
     return result;
 }
@@ -443,6 +445,7 @@ UnaryExpression* newUnaryExpression() {
     result->tag = CONTEXT_UNARY_EXPRESSION;
     result->operator = NULL;
     result->expression = NULL;
+    result->type = NULL;
     return result;
 }
 
@@ -460,6 +463,7 @@ PostfixExpression* newPostfixExpression() {
     result->primary = NULL;
     result->token = false;
     result->postfixParts = jtk_ArrayList_new();
+    result->type = NULL;
     return result;
 }
 
@@ -476,6 +480,7 @@ MemberAccess* newMemberAccess() {
     MemberAccess* result = allocate(MemberAccess, 1);
     result->tag = CONTEXT_MEMBER_ACCESS;
     result->identifier = NULL;
+    result->type = NULL;
     return result;
 }
 
@@ -530,6 +535,7 @@ FunctionArguments* newFunctionArguments() {
     result->tag = CONTEXT_FUNCTION_ARGUMENTS;
     result->parenthesis = NULL;
     result->expressions = jtk_ArrayList_new();
+    result->type = NULL;
     return result;
 }
 
@@ -547,6 +553,7 @@ Subscript* newSubscript() {
     result->tag = CONTEXT_SUBSCRIPT;
     result->bracket = NULL;
     result->expression = NULL;
+    result->type = NULL;
     return result;
 }
 

@@ -325,6 +325,7 @@ struct UnaryExpression {
     ContextType tag;
     Token* operator;
     Context* expression; // Unary expression or postfix expression
+    Type* type;
 };
 
 typedef struct UnaryExpression UnaryExpression;
@@ -341,6 +342,7 @@ struct PostfixExpression {
     void* primary;
     bool token;
     jtk_ArrayList_t* postfixParts; // contexts
+    Type* type;
 };
 
 typedef struct PostfixExpression PostfixExpression;
@@ -356,6 +358,7 @@ struct MemberAccess {
     ContextType tag;
     Token* identifier;
     Type* previous;
+    Type* type;
 };
 
 typedef struct MemberAccess MemberAccess;
@@ -406,6 +409,7 @@ struct FunctionArguments {
     ContextType tag;
     Token* parenthesis;
     jtk_ArrayList_t* expressions;
+    Type* type;
 };
 
 typedef struct FunctionArguments FunctionArguments;
@@ -433,6 +437,7 @@ struct Subscript {
      * It is updated by the analyzer with an instance of `Type`.
      */
     Type* previous;
+    Type* type;
 };
 
 typedef struct Subscript Subscript;
